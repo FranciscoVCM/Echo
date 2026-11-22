@@ -1,61 +1,71 @@
-# DEVLOG — Echo (cópia de trabalho do Francisco)
+# DEVLOG — Echo (Francisco's working copy)
 
-## Como está organizado este repositório
+## Repository layout
 
-- `ECHO/` — projeto Godot 4.6.2 (abre `ECHO/project.godot`). Veio do `echo.zip` do colega; os ficheiros originais estão no commit `Baseline` sem alterações.
-- `docs/` — design atual, auditoria, roadmap e o prompt inicial.
-- `reference/` — PDFs da cadeira e trabalhos A2–A7 (só local, **não** vai para o git: ~135 MB).
-- A pasta do colega (`Downloads/echo`) **não foi alterada**. Só usei o executável do Godot que lá está para correr testes.
-- Git só local (não há remote). Nada foi enviado para lado nenhum.
+- `ECHO/` — Godot 4.6.2 project (`ECHO/project.godot`). The colleague's original code is preserved unmodified in the `Baseline` commit.
+- `docs/` — design notes, audit, roadmap and the original prompt.
+- `reference/` — course PDFs and assignments A2–A7 (local only, git-ignored, ~135 MB).
+- The colleague's folder (`Downloads/echo`) is **never modified**; only its Godot executable is used to run the game and tests.
+- Local git only, no remote.
+
+**How to play:** desktop shortcut **ECHO - Jogar** (or `Jogar_Echo.bat`). **Editor:** **ECHO - Abrir Editor**.
 
 ---
 
-## 2026-11-22 — Fatia vertical: "Clareira"
+## 2026-11-22 (2) — Full game loop: Clareira → 3 sense areas → C/M/Y → K → ending
 
-### O que foi feito
-Uma cena nova, jogável à parte, onde o Ping é comunicação e exploração (sem minijogos):
-`ECHO/scenes/world/clearing_slice.tscn` (no editor: abrir a cena e carregar **F6**).
+Direction from Francisco after playing the first slice:
+- No recruit/absorb. The interesting part of empathy is *how* you interact with each blob and figure out what it needs.
+- Chords unlock by **helping 5 blobs of the same note** (e.g. 5× Dó → Dó maior). Never required.
+- Groups that must be hit by one wave are **the same colour** (one ping, not three fast ones).
+- No 8th note (C4). Seven notes: Dó…Si.
+- A bigger world: the Clareira as a tutorial with K as guide → open world with 3 large themed areas (senses), any order, free to come and go → vassals C, M, Y restore colour (CMYK) → K's final challenge → K revealed as the elder, comments on your journey → end.
+- Areas: not rectangles; maze-like elements, big alcoves, obstacles, curves, irregular shapes, but **not** a dead-end maze.
+- Title screen with options (rebindable keys), a TEST skip button. Timers/counts visible for blobs like shy/stimulated; some puzzles left for the player to work out.
 
-| Encontro | Blob(s) | O que é preciso perceber |
-|---|---|---|
-| Tutorial | Fá (verde) | A cor é uma nota. Nota errada → a blob responde com a sua nota (som + onda colorida) e o nome aparece. |
-| Tímida | Dó (vermelho), canto superior esquerdo | O Dó acorda-a; depois **5 s sem pings**. Qualquer ping (mesmo outra nota) reinicia o tempo. |
-| Par separado | 2× Sol (azul), separados por um pilar | **Uma só onda** tem de tocar nas duas. Há um sítio (abaixo do pilar) de onde isso é possível. |
-| Trio Dó maior | Dó, Mi, Sol (topo direito) | Cada uma tem de ouvir a sua nota em **6 s**. Possível com notas simples (trocar rápido), a partir do círculo de musgo no meio. Com o acorde Dó maior, um só ping resolve. |
-| Escondida | Lá (anil), sala escura em baixo à direita | Invisível até ser tocada por um ping; a entrada não tem linha direta (pilar). Ouve-se a chamar. |
+### What exists now
+**Flow:** title screen → Clareira (K teaches ping, colours = notes, wrong-note answer, shy, same-wave pair, stimulated; the hidden one is NOT explained) → membrane opens → Encruzilhada (hub) → three areas, any order.
 
-Sistemas novos:
-- **Nota → cor do arco-íris** (Dó vermelho … Si violeta). O 8.º tom (Dó agudo) conta como Dó.
-- **Acordes**: tríades diatónicas (Dó maior = Dó·Mi·Sol). Desbloqueio de *protótipo*: resolver 2 encontros desbloqueia Dó maior. **Q** alterna. Nenhum encontro exige acordes (testado).
-- **Ping como exploração**: a camada das ondas fica por cima do nevoeiro (a onda desenha o contorno das paredes) e cada blob tocada deixa uma silhueta momentânea.
-- **Blobs chamam**: as que precisam de ajuda soltam periodicamente um som posicional (2D) — dá para as encontrar de ouvido.
-- **Recrutar / Absorver** (*protótipo*, depois de ajudar): Z recruta (segue-te e repete os teus pings a partir de onde está → o som pode contornar paredes); X absorve (ficas um pouco maior, vês mais longe, ganhas um leve tom da cor dela — não fica mais escuro). Sem karma, sem "bom/mau" na UI. Também se pode não decidir.
-- **Mundo recupera cor**: flora e chão passam de cinzento a cor à medida que se ajudam blobs.
-- **Acessibilidade**: nome da nota escrito por baixo da blob depois de ela responder (N = mostrar sempre); barra de notas com cor + nome + tecla; resposta sonora **e** visual para cada evento.
+**World geometry** (`scripts/world/world_geometry.gd`, data in `world_layout.gd`): rooms are organic blobs, corridors are curved; everything is merged into one walkable shape and rocks/curved ridges are cut out of it. Loops between rooms (no single-path mazes), alcoves, bulges. One set of non-intersecting outlines drives collision, Ping blocking, the fog of war and the PCG checks. The layout is plain data, easy to edit.
 
-### Ficheiros
-Novos: `scripts/echo/` (`echo_notes.gd`, `echo_blob.gd`, `echo_blob_group.gd`, `echo_world.gd`, `echo_hud.gd`, `echo_marker.gd`, `wall_block.gd`, `flora_patch.gd`), `scenes/echo_blob.tscn`, `scenes/world/clearing_slice.tscn`, `tests/clearing_slice_test.gd`, `tests/capture_tour.gd`.
+**Areas (each gets easier the more blobs you help there):**
+| Area | Sense | Theme mechanic | Eases with progress | Vassal |
+|---|---|---|---|---|
+| Grutas da Vista (west) | sight | nearly pitch dark; many hidden blobs; ping is your eyes | vision radius grows; every helped blob becomes a light | **Y**: hides when you get close; its light broke into 3 hidden sparks; with its light back it wants Mi (yellow) |
+| Vale dos Ecos (north) | hearing | all blobs are **grey**: you must recognise their note by ear; melodies to answer | they sing more often; later they **vibrate when your selected note matches** | **C**: lost its voice, hums a broken 3-note song; 3 echo stones ring their note when pinged (listening references); answer the song note by note, no timer |
+| Bosque do Toque (east) | touch | gentle (soft pings only), cautious (flee if you rush; Shift = walk slowly), warmth (stay close), push home with your body | more tolerant (speed, charge, warmth time) | **M**: curled in thorns; rushing/strong pings raise tension until it rolls away; approach slowly, stay close until warm, then a soft ping |
 
-Alterados (pequeno e retrocompatível):
-- `scripts/ping_emitter.gd` — `chord_tone_indices`/`chord_colors` (vazio por omissão = comportamento antigo), som de acorde, e as ondas vão para um nó do grupo `ping_wave_layer` se existir (senão, raiz da cena como antes).
-- `scripts/ping_wave.gd` — a onda guarda as notas que leva (`carries_pitch_class`), desenha anéis extra para acordes, e chama `receive_ping_wave(wave)` em recetores que o tenham (os antigos continuam a receber `receive_ping_details`).
+Freeing C, M, Y restores that ink to the environment (CMYK grading pass that only affects the environment; creatures keep their colours because they carry gameplay information). After all three, the sanctum in the hub opens: **K's finale** = (1) darkness: find K's 4 hidden fragments (shy, stimulated, 2-hit, gentle; Dó/Mi/Sol/Lá, so Dó maior helps), (2) answer K's song, (3) one wave for a violet trio around pillars, (4) 6 s of silence. K grows, all colour returns, K speaks as the elder with lines built from your stats (start area, wrong notes, patience, chords), ending card.
 
-`EchoBlob` herda de `PingDummy` (reaproveita corpo, fade de FOV e emissor). A arena de 6 zonas e `main.tscn` **não foram tocadas** e continuam a ser a cena principal / testes de regressão.
+**Blob temperaments** (`echo_blob.gd`): NOTE (n hits, pips), SHY (silence ring + seconds), STIMULATED (n hits within a window: pips + countdown), GENTLE, CAUTIOUS, WARMTH (fill ring), MELODY (pips), PUSH (nest drawn). Flags: hidden, grey, singer. Groups (`echo_blob_group.gd`): SAME_WAVE (same colour) and CLUSTER (different colours, any order, no time limit; a chord does it in one ping).
 
-### Testes feitos (reais, no Godot 4.6.2)
-- `tests/clearing_slice_test.gd` (headless, ondas e paredes reais): **22/22 ok** — nota errada responde e não liberta; tímida acorda/reinicia/liberta; par só com uma onda comum; **trio com notas simples em 6 s sem acorde**; escondida bloqueada da porta e libertada lá dentro; recrutar/absorver; companheira repete o ping; trio com acorde; janela expira sem softlock.
-  ```
-  Godot_v4.6.2-stable_win64_console.exe --headless --path ECHO --script res://tests/clearing_slice_test.gd
-  ```
-- Arena (`interaction_test_arena.tscn`) e `main.tscn` arrancam sem erros depois das alterações.
-- Capturas de ecrã com `tests/capture_tour.gd` (com janela) para verificar o aspeto visual.
-- **Não testado por uma pessoa a jogar**: sensação, dificuldade, volume dos sons, legibilidade. Isso é o próximo passo.
+**PCG** (`encounter_generator.gd`), following our A7: designer patterns per area → the computer picks a pattern per site, varies notes/positions/rocks/timings, **evaluates** (reachable; solvable with single notes; stimulated windows always feasible with the ping cooldown; same-wave: a solution spot must exist *and* the rock must matter, i.e. ≤60% of nearby spots work; no repetition: max 3 per pattern, no back-to-back repeats; note balancing so every note has ≥5 creatures and every chord is reachable). Player influence: areas are generated on **first visit**, and chords the player owns make clusters of those notes more likely. Specs are saved, so a world stays the same on Continue.
 
-### Decisões em aberto (usei defaults reversíveis)
-1. Mapeamento nota→cor final (está ROYGBIV a partir de Dó).
-2. Como se ganham acordes (está "2 encontros → Dó maior"; ideia alternativa: o próprio trio ensina o acorde).
-3. Tríades diatónicas (Ré menor, Si diminuto…) ou sempre maiores?
-4. Recrutar/absorver: efeitos reais, custo, se é reversível, ligação a karma/final.
-5. A tímida deve também ter medo de pings fortes (como a "frightened" da arena)?
-6. Duração do silêncio (5 s) e da janela do trio (6 s) — afinar em playtest.
-7. Papel de C/M/Y/K e da K como anciã / final.
+**UI:** title screen (Continuar / Novo jogo / Opções / Sair, plus TEST: skip Clareira, original arena), options (volume, fullscreen, note names, **key rebinding** for every action), pause (Esc), non-blocking dialogue (Enter skips), HUD (note strip with per-note chord progress x/5, region, area progress, colours restored). Save/continue (`user://save.json`).
+
+**Test-only keys** (only after the TEST button): F10 = help every creature in the current area, F11 = travel hub → caves → valley → forest.
+
+### Changes to the colleague's code (small, backwards compatible)
+- `player_controller.gd`: uses the rebindable input actions when they exist (falls back to the original hard-coded keys), slow walk (Shift), `controls_enabled`.
+- `ping_emitter.gd`: input actions with fallback, `tone_count` (the world uses 7, the arena keeps 8 incl. key 8), `input_enabled`; chords from the previous iteration.
+- `project.godot`: **main scene is now the title screen**, autoload `Game`. The arena is still reachable from the title screen (TEST) and runs unchanged.
+
+### Tests (real, Godot 4.6.2)
+- `tests/world_tests.tscn` (`--headless --fixed-fps 60 --path ECHO res://tests/world_tests.tscn`): **124 checks, 0 failures, ~58 s.** Geometry is one connected space, all markers/sites walkable; PCG on 5 seeds (12–17 blobs per area, every note ≥5); then a **full scripted playthrough with real pings and simulated input**: Clareira, every generated encounter of all 3 areas, Y/C/M, all 4 K stages, ending. A full playthrough unlocks all 7 chords.
+- `tests/ui_smoke.tscn`: title → options → rebind → reset → TEST skip → pause/unpause.
+- `tests/capture_world.tscn` (windowed): screenshots of every region + FPS: **98–155 fps**, 0.5–7 ms physics per frame on this laptop.
+- The arena and `main.tscn` still start without errors.
+- **Not yet tested by a human player**: readability of each temperament, difficulty, sound volumes/mix, fun.
+
+### Open decisions / ideas for the group
+1. Note→colour mapping (ROYGBIV from Dó) and which vassal belongs to which area (Y=sight, C=hearing, M=touch).
+2. Diatonic chords (Ré menor, Si diminuto…) vs. always major.
+3. K's backstory (currently: "when we stopped listening to each other I closed myself off and the colours left with me", ambiguous on purpose).
+4. Colour-blind mode (planned; note names toggle exists, N).
+5. Sounds are synthesised placeholders; a real sound pass (GD4) would help the hearing area a lot.
+6. Tuning after playtests (GD10/GD11): fog darkness, timers, tolerances, number of blobs per area.
+
+---
+
+## 2026-11-22 (1) — First vertical slice "Clareira" (superseded)
+First playable slice: note colours, shy / pair / trio / hidden blobs, Dó maior after 2 encounters, recruit/absorb placeholder. Replaced by the iteration above after Francisco's feedback (trio of different colours felt unsatisfying; recruit/absorb removed; chords per 5 blobs of a note).

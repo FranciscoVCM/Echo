@@ -29,6 +29,10 @@ const PREVIEW_SAMPLE_RATE := 22050
 
 @export_category("Ping Tone")
 @export_enum("C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4") var ping_tone_index := 0
+## How many of the tones above the player can select (8 = up to C4, 7 = the natural notes).
+@export_range(1, 8, 1) var tone_count := 8
+## When false, the player cannot charge or emit (dialogue moments).
+var input_enabled := true
 
 ## Optional extra scale degrees emitted together with the selected tone (a chord).
 ## Empty by default, so existing scenes keep emitting a single note.
@@ -99,7 +103,7 @@ func _physics_process(delta: float) -> void:
 		cooldown_opacity = lerpf(cooldown_body_opacity, 1.0, eased_progress)
 	else:
 		cooldown_opacity = 1.0
-	var e_pressed := Input.is_physical_key_pressed(KEY_E)
+	var e_pressed := (Input.is_action_pressed("echo_ping") if InputMap.has_action("echo_ping") else Input.is_physical_key_pressed(KEY_E)) and input_enabled
 	if not listen_for_input:
 		ping_charging = false
 		ping_charge = 0.0
@@ -122,7 +126,25 @@ func _physics_process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not listen_for_input:
+	if not listen_for_input or not input_enabled:
+		return
+	if InputMap.has_action("echo_note_1"):
+		if event.is_action_pressed("echo_note_next"):
+			_change_ping_tone(1)
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("echo_note_prev"):
+			_change_ping_tone(-1)
+			get_viewport().set_input_as_handled()
+		else:
+			for index in range(tone_count):
+				if event.is_action_pressed("echo_note_%d" % (index + 1)):
+					_select_ping_tone(index)
+					get_viewport().set_input_as_handled()
+					break
+			# The colleague's arena still offers C4 on key 8 (no rebindable action for it).
+			if tone_count >= 8 and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_8:
+				_select_ping_tone(7)
+				get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -135,7 +157,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var key_code: int = event.physical_keycode
 		if key_code < KEY_1 or key_code > KEY_8:
 			key_code = event.keycode
-		if key_code >= KEY_1 and key_code <= KEY_8:
+		if key_code >= KEY_1 and key_code < KEY_1 + tone_count:
 			_select_ping_tone(key_code - KEY_1)
 			get_viewport().set_input_as_handled()
 
@@ -145,7 +167,7 @@ func _change_ping_tone(step: int) -> void:
 
 
 func _select_ping_tone(index: int) -> void:
-	ping_tone_index = posmod(index, PING_NOTE_NAMES.size())
+	ping_tone_index = posmod(index, tone_count)
 	ping_tone_changed.emit(ping_tone_index, ping_tone_name, ping_tone_frequency)
 	_play_tone_preview()
 

@@ -4,21 +4,19 @@ A 2D top-down blob prototype for Godot 4.6.2.
 
 ## Run
 
-Open the project in Godot 4.6.2 and press F5 to run the six-zone small-blob interaction arena. The original single-room Ping test remains available as `scenes/main.tscn`.
+Open the project in Godot 4.6.2 and press F5 (title screen). The six-zone lab is `scenes/interaction_test_arena.tscn` (F6 on that scene, or the TEST button on the title screen); the original single-room Ping test is `scenes/main.tscn`.
 
-## Echo world — "Clareira" vertical slice
+## Echo (the game)
 
-Open `scenes/world/clearing_slice.tscn` and press **F6** (run current scene). The six-zone arena stays the main scene for regression tests.
+Press **F5**: the title screen opens (main scene). *Novo jogo* starts in the Clareira (tutorial with K); the TEST button skips it. The original six-zone lab is still available from the title screen and as `scenes/interaction_test_arena.tscn`.
 
-- **1–8 / wheel**: choose a note. Each note is a colour (Dó red … Si violet, prototype mapping); a blob only reacts to its own note.
-- **E**: Ping. Waves are drawn above the fog and leave echo silhouettes where they touch creatures.
-- **Q**: toggle a chord once unlocked (prototype: after 2 encounters you learn Dó maior).
-- **Z / X** near a helped blob: recruit (follows you and repeats your pings) / absorb (bigger, wider vision). Prototype.
-- **N**: always show note names. **H**: help. **F9**: restart.
+Controls (all rebindable in Options): WASD/arrows move, **Shift** walk slowly, **E** hold/release Ping, **1–7**/wheel note, **Q** chord (after helping 5 creatures of that note), **N** note names, **Enter** dialogue, **Esc** pause, **H** controls.
 
-See `../DEVLOG.md` for details, tests and open decisions. Gameplay test: `--headless --path . --script res://tests/clearing_slice_test.gd`.
+Main code: `scripts/core/game.gd` (autoload: settings, input, progress, save), `scripts/world/` (geometry, layout data, PCG generator/spawner, fog, CMYK grading, world flow), `scripts/echo/` (blobs, groups, vassals), `scripts/ui/`. See `../DEVLOG.md`.
 
-## Controls
+Tests: `--headless --fixed-fps 60 --path . res://tests/world_tests.tscn` (full scripted playthrough).
+
+## Original lab controls
 
 - **WASD** or **arrow keys**: move.
 - **Hold and release E**: charge and emit a Ping. Range increases with hold time; walls block the wave.

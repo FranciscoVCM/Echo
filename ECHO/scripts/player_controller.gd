@@ -19,6 +19,13 @@ extends CharacterBody2D
 @export_range(0.05, 0.5, 0.005) var max_dash_duration: float = 0.265
 @export_range(0.1, 10.0, 0.1) var dash_cooldown: float = 2.0
 
+@export_category("Slow Walk")
+## Speed multiplier while the "echo_slow" action is held (careful approaches).
+@export_range(0.1, 1.0, 0.05) var slow_walk_factor: float = 0.38
+## When false, input is ignored (dialogue moments, cutscenes).
+var controls_enabled := true
+var slow_walking := false
+
 # The visual reads these values to orient deformation and surface squashing.
 var input_direction := Vector2.ZERO
 var wall_pressure_direction := Vector2.ZERO
@@ -44,11 +51,14 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	input_direction = _read_direction()
+	input_direction = _read_direction() if controls_enabled else Vector2.ZERO
+	slow_walking = controls_enabled and _action_or_key("echo_slow", KEY_SHIFT)
+	if slow_walking:
+		input_direction *= slow_walk_factor
 	if input_direction != Vector2.ZERO:
 		_last_direction = input_direction
 
-	var space_pressed := dash_unlocked and Input.is_physical_key_pressed(KEY_SPACE)
+	var space_pressed := dash_unlocked and controls_enabled and _action_or_key("echo_dash", KEY_SPACE)
 	if not dash_unlocked:
 		dash_charging = false
 		dash_fully_charged = false
@@ -139,7 +149,16 @@ func _calculate_wall_pressure() -> Vector2:
 	return pressure.limit_length(1.0)
 
 
+## Uses the rebindable input action when the game registered it, else the original key.
+func _action_or_key(action: String, fallback_key: Key) -> bool:
+	if InputMap.has_action(action):
+		return Input.is_action_pressed(action)
+	return Input.is_physical_key_pressed(fallback_key)
+
+
 func _read_direction() -> Vector2:
+	if InputMap.has_action("echo_left"):
+		return Input.get_vector("echo_left", "echo_right", "echo_up", "echo_down")
 	var arrow_direction := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	# Physical key codes keep WASD consistent across keyboard layouts.
 	var wasd_direction := Vector2(

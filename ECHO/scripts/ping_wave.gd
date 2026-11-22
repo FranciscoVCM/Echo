@@ -13,6 +13,9 @@ var _is_echo := false
 var _charge := 1.0
 var _tone_index := 0
 var _frequency := 130.8128
+## All scale degrees carried by this wave (one for a single note, several for a chord).
+var _tone_indices := PackedInt32Array()
+var _tone_colors: Array[Color] = []
 @export_flags_2d_physics var collision_mask := 2
 @export var receiver_group := "ping_blobs"
 var _radius := 0.0
@@ -49,6 +52,40 @@ func configure(
 	_charge = charge
 	_tone_index = tone_index
 	_frequency = frequency
+	_tone_indices = PackedInt32Array([tone_index])
+	_tone_colors = [wave_color]
+
+
+## Optional: make this wave carry a chord. The first degree should be the selected tone.
+func set_tones(tone_indices: PackedInt32Array, tone_colors: Array) -> void:
+	_tone_indices = tone_indices.duplicate()
+	_tone_colors.clear()
+	for color in tone_colors:
+		_tone_colors.append(color)
+
+
+func get_tone_indices() -> PackedInt32Array:
+	return _tone_indices
+
+
+## True when any tone of the wave has this pitch class (C3 and C4 both count as Dó).
+func carries_pitch_class(pitch_class: int) -> bool:
+	for degree in _tone_indices:
+		if posmod(degree, 7) == posmod(pitch_class, 7):
+			return true
+	return false
+
+
+func is_echo() -> bool:
+	return _is_echo
+
+
+func get_charge() -> float:
+	return _charge
+
+
+func get_source() -> CollisionObject2D:
+	return _source
 
 
 func _physics_process(delta: float) -> void:
@@ -150,7 +187,10 @@ func _notify_reached_targets() -> void:
 		if _notified_targets.has(target_id) or _radius < _receiver_distances[index]:
 			continue
 		_notified_targets[target_id] = true
-		if target.has_method("receive_ping_details"):
+		if target.has_method("receive_ping_wave"):
+			# Newer receivers read everything (including chord tones) from the wave itself.
+			target.call("receive_ping_wave", self)
+		elif target.has_method("receive_ping_details"):
 			target.call("receive_ping_details", global_position, _is_echo, _charge, _tone_index, _frequency, get_instance_id())
 		else:
 			target.call("receive_ping", global_position, _is_echo)
@@ -171,3 +211,13 @@ func _draw() -> void:
 	var line := Color(_wave_color, 0.88 * intensity)
 	draw_polyline(wavefront, glow, 7.0, true)
 	draw_polyline(wavefront, line, 2.4, true)
+	# Chord tones trail the main wavefront as thinner rings in their own colours.
+	for tone in range(1, _tone_colors.size()):
+		var trailing := PackedVector2Array()
+		var offset := 7.0 * tone
+		for index in range(RAY_COUNT + 1):
+			var ray_index := index % RAY_COUNT
+			var angle := TAU * float(ray_index) / float(RAY_COUNT)
+			var visible_radius := minf(maxf(_radius - offset, 0.0), _ray_distances[ray_index])
+			trailing.append(Vector2.RIGHT.rotated(angle) * visible_radius)
+		draw_polyline(trailing, Color(_tone_colors[tone], 0.75 * intensity), 2.0, true)

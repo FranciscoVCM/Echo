@@ -30,6 +30,13 @@ const PREVIEW_SAMPLE_RATE := 22050
 @export_category("Ping Tone")
 @export_enum("C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4") var ping_tone_index := 0
 
+## Optional extra scale degrees emitted together with the selected tone (a chord).
+## Empty by default, so existing scenes keep emitting a single note.
+## Degrees count scale steps from C3 and may exceed 7 (see EchoNotes).
+var chord_tone_indices := PackedInt32Array()
+## Optional colours drawn by the wave for each extra chord tone.
+var chord_colors: Array[Color] = []
+
 var ping_charging := false
 var ping_charge := 0.0
 var ping_squash := 0.0
@@ -39,6 +46,7 @@ var cooldown_opacity := 1.0
 var _e_was_pressed := false
 var _ping_animation_time := -1.0
 var _tone_preview_streams: Array[AudioStreamWAV] = []
+var _chord_preview_streams: Dictionary = {}
 @onready var _tone_preview_player: AudioStreamPlayer = get_node_or_null("TonePreview") as AudioStreamPlayer
 
 
@@ -58,6 +66,20 @@ static func tone_name_for_index(index: int) -> String:
 static func frequency_for_tone(index: int) -> float:
 	var semitone: int = PING_NOTE_SEMITONES[posmod(index, PING_NOTE_SEMITONES.size())]
 	return BASE_NOTE_FREQUENCY * pow(2.0, float(semitone) / 12.0)
+
+
+## Frequency for any scale degree counted from C3 (7 = C4, 9 = E4 ...).
+static func frequency_for_degree(degree: int) -> float:
+	var octave := floori(float(degree) / 7.0)
+	var semitone: int = PING_NOTE_SEMITONES[posmod(degree, 7)] + 12 * octave
+	return BASE_NOTE_FREQUENCY * pow(2.0, float(semitone) / 12.0)
+
+
+## All degrees carried by the next ping: the selected tone plus any chord tones.
+func current_tone_indices() -> PackedInt32Array:
+	var tones := PackedInt32Array([ping_tone_index])
+	tones.append_array(chord_tone_indices)
+	return tones
 
 
 func _ready() -> void:
@@ -139,11 +161,24 @@ func play_note_preview(tone_index: int = -1) -> void:
 		return
 	var index := ping_tone_index if tone_index < 0 else posmod(tone_index, PING_NOTE_NAMES.size())
 	_tone_preview_player.stop()
-	_tone_preview_player.stream = _tone_preview_streams[index]
+	if tone_index < 0 and not chord_tone_indices.is_empty():
+		_tone_preview_player.stream = _chord_preview(current_tone_indices())
+	else:
+		_tone_preview_player.stream = _tone_preview_streams[index]
 	_tone_preview_player.play()
 
 
-func _create_note_preview(frequency: float) -> AudioStreamWAV:
+func _chord_preview(degrees: PackedInt32Array) -> AudioStreamWAV:
+	var key := str(degrees)
+	if not _chord_preview_streams.has(key):
+		var frequencies: Array[float] = []
+		for degree in degrees:
+			frequencies.append(frequency_for_degree(degree))
+		_chord_preview_streams[key] = _create_note_preview(frequencies[0], frequencies.slice(1))
+	return _chord_preview_streams[key]
+
+
+func _create_note_preview(frequency: float, extra_frequencies: Array[float] = []) -> AudioStreamWAV:
 	var frame_count := int(PREVIEW_DURATION * PREVIEW_SAMPLE_RATE)
 	var pcm_data := PackedByteArray()
 	pcm_data.resize(frame_count * 2)
@@ -154,6 +189,12 @@ func _create_note_preview(frequency: float) -> AudioStreamWAV:
 		var release := 1.0 - release_progress * release_progress * (3.0 - 2.0 * release_progress)
 		var phase := TAU * frequency * time
 		var tone := sin(phase) + sin(phase * 2.0) * 0.16 + sin(phase * 3.0) * 0.06
+		for extra_frequency in extra_frequencies:
+			# Slight strum: each chord tone enters a few milliseconds later.
+			var extra_phase := TAU * extra_frequency * time
+			tone += (sin(extra_phase) + sin(extra_phase * 2.0) * 0.12) * minf(time / 0.03, 1.0)
+		if not extra_frequencies.is_empty():
+			tone /= sqrt(1.0 + extra_frequencies.size())
 		var sample := roundi(clampf(tone * 0.16 * attack * release, -1.0, 1.0) * 32767.0)
 		if sample < 0:
 			sample += 65536
@@ -175,7 +216,13 @@ func emit_ping(is_echo: bool, range_override: float = -1.0, charge: float = 1.0)
 	var range_to_use := maximum_ping_range if range_override < 0.0 else range_override
 	wave.global_position = global_position
 	wave.configure(source, range_to_use, wave_duration, ping_color, is_echo, charge, ping_tone_index, ping_tone_frequency)
-	get_tree().current_scene.add_child(wave)
+	if not chord_tone_indices.is_empty():
+		wave.set_tones(current_tone_indices(), [ping_color] + chord_colors)
+	# Scenes may provide a dedicated layer (e.g. drawn above the fog); otherwise use the scene root.
+	var wave_parent := get_tree().get_first_node_in_group("ping_wave_layer")
+	if wave_parent == null:
+		wave_parent = get_tree().current_scene
+	wave_parent.add_child(wave)
 	ping_cooldown_remaining = ping_cooldown
 	cooldown_opacity = cooldown_body_opacity
 	_ping_animation_time = 0.0

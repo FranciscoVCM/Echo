@@ -6,6 +6,18 @@ A 2D top-down blob prototype for Godot 4.6.2.
 
 Open the project in Godot 4.6.2 and press F5 to run the six-zone small-blob interaction arena. The original single-room Ping test remains available as `scenes/main.tscn`.
 
+## Echo world — "Clareira" vertical slice
+
+Open `scenes/world/clearing_slice.tscn` and press **F6** (run current scene). The six-zone arena stays the main scene for regression tests.
+
+- **1–8 / wheel**: choose a note. Each note is a colour (Dó red … Si violet, prototype mapping); a blob only reacts to its own note.
+- **E**: Ping. Waves are drawn above the fog and leave echo silhouettes where they touch creatures.
+- **Q**: toggle a chord once unlocked (prototype: after 2 encounters you learn Dó maior).
+- **Z / X** near a helped blob: recruit (follows you and repeats your pings) / absorb (bigger, wider vision). Prototype.
+- **N**: always show note names. **H**: help. **F9**: restart.
+
+See `../DEVLOG.md` for details, tests and open decisions. Gameplay test: `--headless --path . --script res://tests/clearing_slice_test.gd`.
+
 ## Controls
 
 - **WASD** or **arrow keys**: move.

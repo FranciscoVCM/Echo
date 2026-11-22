@@ -12,6 +12,21 @@
 
 ---
 
+## 2026-11-23 (3) — Playtest notes: wording, guardians, light, spacing
+
+- West nook (shy, top-left of the Clareira) is roomier; the Mi guide light is closer to the pond.
+- Guide light disappears once its lesson is given.
+- Guardians are never named in advance ("um guardião por zona"); colour restoration is only revealed when the first guardian is freed ("O mundo ficou menos escuro... e o amarelo voltou. Cada guardião guardava uma das cores"). HUD "Cores" line appears only after that.
+- K tells you, near a sleeping guardian, that it wakes after N of M blobs. On waking: "the guardian of this zone woke up". After each guardian: reflection + the colour + which zones still have guardians (and that the remaining blobs can wait).
+- Caves: no compass directions; K says helping more blobs lets you see further. Idle hints stop in zones whose guardian is already free.
+- Chord explanations are deferred while a guardian challenge/finale is in progress, then given when it ends.
+- First-sight nudges for the advanced challenges (chorus, neighbours, lake, current), never the solution.
+- Y's returned sparks no longer pile up on top of Y (they merge and disappear); same for K's fragments.
+- "Criaturas" -> "Blobs" in the HUD and K's lines. Hub renamed "Nascente" (proposal; easy to change in world_layout.gd). K's ending mentions it was a guardian like the other three.
+- Tests: 176 checks, 0 failures (light disappears, sleeping-guardian line, K's lines after every guardian, "menos escuro" after the first).
+
+---
+
 ## 2026-11-23 (2) — Tutorial strictly in order; K is only a voice until the end
 
 Feedback: you could ping (and solve Fá) before K finished talking; following K's body didn't trigger the explanations (you had to walk further) and the next creature was hard to find; tutorial must be done in K's order.

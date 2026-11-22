@@ -25,7 +25,7 @@ static func _hub() -> Dictionary:
 		var angle := deg_to_rad(112.0 + index * (316.0 / 22.0))
 		ring.append(Vector2(cos(angle), sin(angle)) * 330.0)
 	return {
-		"name": "hub", "title": "Encruzilhada", "floor_color": Color(0.33, 0.30, 0.38),
+		"name": "hub", "title": "Nascente", "floor_color": Color(0.33, 0.30, 0.38),
 		"flora": [Color(0.75, 0.6, 0.9), Color(0.6, 0.8, 0.85), Color(0.9, 0.85, 0.6)],
 		"rooms": [
 			[Vector2(0, 0), 740, 660, 0.08, 11],
@@ -57,7 +57,7 @@ static func _clearing() -> Dictionary:
 		"rooms": [
 			[Vector2(-430, 1840), 230, 200, 0.18, 21],  # start nest
 			[Vector2(0, 1600), 560, 400, 0.12, 22],  # main glade (with the pond)
-			[Vector2(-660, 1420), 210, 190, 0.2, 23],  # west nook (shy)
+			[Vector2(-680, 1420), 260, 230, 0.15, 23],  # west nook (shy), roomy
 			[Vector2(620, 1740), 280, 240, 0.15, 24],  # east glade (pair around rock)
 			[Vector2(580, 1320), 170, 150, 0.2, 25],  # hidden alcove
 			[Vector2(130, 2240), 190, 140, 0.18, 26],  # south pocket (behind the current)
@@ -72,7 +72,7 @@ static func _clearing() -> Dictionary:
 			[Vector2(-200, 1500), 45, 202], [Vector2(-560, 1640), 40, 204],
 		],
 		"ridges": [
-			[[Vector2(-470, 1330), Vector2(-430, 1450), Vector2(-500, 1560)], 40],
+			[[Vector2(-440, 1300), Vector2(-425, 1390)], 36],
 		],
 		# Mi waits on a lily pad in the pond: too far for a quick ping, so you learn to charge.
 		"pools": [[Vector2(220, 1460), 240, 180, 27]],
@@ -87,7 +87,7 @@ static func _clearing() -> Dictionary:
 			"stim": Vector2(140, 2260), "hidden": Vector2(590, 1300),
 			"k_start": Vector2(-330, 1800), "gate": Vector2(0, 960),
 			# Tutorial guide lights: exactly where to stand for each lesson.
-			"g_fa": Vector2(-330, 1720), "g_mi": Vector2(220, 1760), "g_shy": Vector2(-600, 1530),
+			"g_fa": Vector2(-330, 1720), "g_mi": Vector2(220, 1685), "g_shy": Vector2(-600, 1530),
 			"g_pair": Vector2(620, 1575), "g_current": Vector2(115, 1890), "g_stim": Vector2(140, 2140),
 			"g_hidden": Vector2(630, 1460),
 		},

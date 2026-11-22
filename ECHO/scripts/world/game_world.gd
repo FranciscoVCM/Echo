@@ -1,6 +1,6 @@
 class_name GameWorld
 extends Node2D
-## The whole Echo world: Clareira (tutorial with K) -> Encruzilhada -> three sense areas
+## The whole Echo world: Clareira (tutorial with K) -> Nascente (hub) -> three sense areas
 ## (any order) -> vassals C/M/Y -> K's final challenge -> ending.
 
 const PLAYER_SCENE: PackedScene = preload("res://scenes/player.tscn")
@@ -34,6 +34,8 @@ var _pause_menu: CanvasLayer
 var companion: KCompanion
 var currents: Array[CurrentZone] = []
 var _intro_running := false
+## [pattern, center, area] of the hand-made advanced challenges (for K's first-sight nudges).
+var _set_piece_spots: Array = []
 
 
 func _ready() -> void:
@@ -73,8 +75,15 @@ func _ready() -> void:
 	_spawn_clearing()
 	for area in _game.AREAS:
 		for spec in SetPieces.for_area(area):
+			var center := Vector2.ZERO
 			for blob in EncounterSpawner.spawn(spec, _creatures, geometry):
 				_register_blob(blob, area)
+				center += blob.position
+			center /= maxf(spec["blobs"].size(), 1)
+			var pattern: String = spec.get("pattern", "")
+			if str(spec["id"]).ends_with("current"):
+				pattern = "current"
+			_set_piece_spots.append([pattern, center, area])
 	for area in _game.AREAS:
 		var saved: Array = _game.progress["area_specs"].get(area, [])
 		if not saved.is_empty():
@@ -353,6 +362,7 @@ func _process(delta: float) -> void:
 	_update_final(delta)
 	_update_status()
 	_update_k_pointer()
+	_update_proximity_comments()
 
 
 func _enter_region(region: String) -> void:
@@ -365,7 +375,7 @@ func _enter_region(region: String) -> void:
 			"vista":
 				_say_once("vista_intro", [
 					"As Grutas da Vista. Aqui quase nada se vê.",
-					"O teu ping é os teus olhos. E quem ajudares... talvez ilumine o caminho.",
+					"O teu ping é os teus olhos. E cada blob que ajudares aqui vai deixar-te ver mais longe.",
 				])
 			"som":
 				_say_once("som_intro", [
@@ -379,9 +389,9 @@ func _enter_region(region: String) -> void:
 				])
 	elif region == "hub" and _game.progress["clearing_done"]:
 		_say_once("hub_first", [
-			"Esta é a Encruzilhada. Daqui saem três caminhos: as Grutas a oeste, o Vale a norte, o Bosque a este.",
-			"Em cada lugar há muitas criaturas perdidas... e um guardião adormecido: C, M e Y.",
-			"Cada guardião guarda uma cor. Vai pela ordem que quiseres. Entra e sai quando quiseres.",
+			"Esta é a Nascente. Daqui saem três caminhos: as Grutas a oeste, o Vale a norte, o Bosque a este.",
+			"Em cada lugar há muitas blobs perdidas... e um guardião adormecido.",
+			"Vai pela ordem que quiseres. Entra e sai quando quiseres.",
 		])
 
 
@@ -465,13 +475,15 @@ func _update_status() -> void:
 		for blob in _area_blobs[current_region]:
 			if blob.is_freed():
 				freed += 1
-		lines.append("Criaturas ajudadas: %d / %d" % [freed, _area_blobs[current_region].size()])
+		lines.append("Blobs ajudadas: %d / %d" % [freed, _area_blobs[current_region].size()])
 		if current_region in _game.AREAS and not vassals[_game.AREA_VASSAL[current_region]].awake:
 			lines.append("O guardião acorda aos %d" % area_needed(current_region))
-	var cmy: Array[String] = []
-	for letter in ["C", "M", "Y", "K"]:
-		cmy.append(letter if _game.is_vassal_freed(letter) else "·")
-	lines.append("Cores: " + " ".join(cmy))
+	# The colours are only mentioned once the first guardian has given one back.
+	if _game.cmy_freed_count() > 0:
+		var cmy: Array[String] = []
+		for letter in ["C", "M", "Y", "K"]:
+			cmy.append(letter if _game.is_vassal_freed(letter) else "·")
+		lines.append("Cores: " + " ".join(cmy))
 	if _game.test_mode:
 		lines.append("[TESTE] F10 ajudar área · F11 viajar")
 	hud.set_status("\n".join(lines))
@@ -556,7 +568,7 @@ func _finish_clearing() -> void:
 		_clearing_gate.open()
 	_say_once("clearing_done", [
 		"A clareira respira outra vez.",
-		"Mais à frente há três lugares que perderam muito mais do que a cor. Segue o caminho para norte.",
+		"Mais à frente há três lugares onde muitas blobs se perderam. Segue o caminho para norte.",
 	])
 	k_body.glide_to(Vector2(140, 140), 6.0)
 
@@ -568,7 +580,7 @@ func on_vassal_completed(letter: String) -> void:
 	EchoMarker.spawn(vassal.global_position, VASSAL_COLORS[letter], 90.0, get_tree(), true)
 	companion.on_vassal_completed(letter)
 	var color_name: String = {"C": "o ciano", "M": "o magenta", "Y": "o amarelo"}[letter]
-	hud.show_message("%s voltou ao mundo." % color_name.capitalize(), 5.0)
+	hud.show_message("O mundo está menos escuro: %s voltou." % color_name, 6.0)
 	match letter:
 		"Y":
 			say([["Y", "Obrigada por me encontrares... sem me obrigares a ser vista."]], "Y")
@@ -582,7 +594,7 @@ func on_vassal_completed(letter: String) -> void:
 			_sanctum_gate.open()
 		say([
 			["K", "Três cores voltaram. Falta uma... a mais escura."],
-			["K", "Vem ao centro da Encruzilhada. Estou à tua espera."],
+			["K", "Vem ao centro da Nascente. Estou à tua espera."],
 		])
 
 
@@ -616,6 +628,33 @@ func _say_once(key: String, lines: Array, speaker: String = "K") -> void:
 		return
 	_game.mark_dialogue(key)
 	say(lines, speaker, key)
+
+
+## K comments when you first come near a sleeping guardian or an advanced challenge.
+func _update_proximity_comments() -> void:
+	if dialogue.is_busy() or not current_region in _game.AREAS:
+		return
+	var position := player.global_position
+	var letter: String = _game.AREA_VASSAL[current_region]
+	var vassal: VassalBody = vassals[letter]
+	if not vassal.awake and not vassal.completed and vassal.global_position.distance_to(position) < 520.0:
+		companion.on_near_sleeping_vassal(current_region)
+		return
+	for spot in _set_piece_spots:
+		if spot[2] == current_region and (spot[1] as Vector2).distance_to(position) < 360.0:
+			companion.on_near_set_piece(spot[0])
+			return
+
+
+## True while a guardian's challenge (or K's finale) is in progress around the player.
+func in_themed_challenge() -> bool:
+	if _final_stage >= 1 and _final_stage <= 4:
+		return true
+	for letter in vassals:
+		var vassal: VassalBody = vassals[letter]
+		if vassal.awake and not vassal.completed and vassal.global_position.distance_to(player.global_position) < 900.0:
+			return true
+	return false
 
 
 func _update_k_pointer() -> void:
@@ -694,7 +733,7 @@ func _start_final_stage(stage: int) -> void:
 			for blob in _final_fragments:
 				var tween := blob.create_tween()
 				tween.tween_property(blob, "global_position", Vector2.ZERO, 1.5).set_trans(Tween.TRANS_SINE)
-				tween.tween_callback(blob.hide)
+				tween.tween_callback(blob.set_dormant.bind(true))
 			k_body.visible = true
 			k_body.always_visible = true
 			k_body.modulate.a = 1.0

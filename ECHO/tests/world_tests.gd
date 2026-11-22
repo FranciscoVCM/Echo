@@ -174,6 +174,7 @@ func _test_full_playthrough() -> void:
 			skip_dialogue()
 			await frames(5)
 			check(game.dialogue_seen(phase[1]), "standing on the light explains '%s'" % phase[1])
+		check(world.companion.guide_target() == Vector2.INF, "the light disappears once its lesson is given ('%s')" % step["id"])
 		for blob in clearing:
 			if blob.blob_id in step["blobs"]:
 				check(not blob.dormant, "%s woke up for its lesson" % blob.blob_id)
@@ -193,6 +194,11 @@ func _test_full_playthrough() -> void:
 		check(blobs.size() >= 12, "%s generated %d blobs on entry" % [area, blobs.size()])
 		var letter_check: String = game.AREA_VASSAL[area]
 		check(not world.vassals[letter_check].awake, "%s guardian sleeps on arrival" % area)
+		skip_dialogue()
+		world.player.global_position = spot_near(world.vassals[letter_check].global_position, 250.0)
+		await frames(10)
+		check(game.dialogue_seen("asleep_" + area), "near the sleeping %s guardian, K explains it wakes after enough blobs" % area)
+		skip_dialogue()
 		var needed: int = world.area_needed(area)
 		check(needed < blobs.size(), "%s guardian wakes at %d of %d (not all needed)" % [area, needed, blobs.size()])
 		var specs: Array = SetPieces.for_area(area) + game.progress["area_specs"][area]
@@ -212,8 +218,15 @@ func _test_full_playthrough() -> void:
 		await wait(0.5)
 		var letter: String = game.AREA_VASSAL[area]
 		check(world.vassals[letter].awake, "vassal %s woke up after the area was completed" % letter)
+		var history_before: int = world.dialogue.history.size()
 		await solve_vassal(letter)
 		check(game.is_vassal_freed(letter), "vassal %s freed" % letter)
+		var said := ""
+		for entry in world.dialogue.history.slice(history_before):
+			said += str(entry[1]) + " | "
+		check(said.contains("voltou"), "after %s, K reflects and says the colour came back" % letter)
+		if area == "vista":
+			check(said.contains("menos escuro"), "after the first guardian K explains the world is less dark")
 
 	print("Chords: %s" % [game.unlocked_chords()])
 	check(game.unlocked_chords().size() >= 3, "several chords unlocked by playing (%d)" % game.unlocked_chords().size())

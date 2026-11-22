@@ -15,6 +15,8 @@ var _visible_chars := 0.0
 var _hold := 0.0
 var _current_sequence := ""
 var _active := false
+## Every line ever queued (speaker, text): handy for tests and debugging.
+var history: Array = []
 
 
 func _ready() -> void:
@@ -63,8 +65,10 @@ func say(lines: Array, speaker: String = "K", sequence_id: String = "") -> void:
 		var last := index == lines.size() - 1
 		if line is Array:
 			_queue.append([line[0], line[1], sequence_id if last else ""])
+			history.append([line[0], line[1]])
 		else:
 			_queue.append([speaker, line, sequence_id if last else ""])
+			history.append([speaker, line])
 	if not _active:
 		_next()
 

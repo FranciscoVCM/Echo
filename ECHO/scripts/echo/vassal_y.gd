@@ -81,7 +81,8 @@ func _on_spark_freed(blob: EchoBlob) -> void:
 	glow = 0.15 + 0.28 * sparks_returned
 	var tween := blob.create_tween()
 	tween.tween_property(blob, "global_position", global_position, 1.2).set_trans(Tween.TRANS_SINE)
-	tween.tween_callback(blob.hide)
+	# Merges into Y: removed, so it can't reappear on top of it.
+	tween.tween_callback(blob.queue_free)
 	sing(SPARK_NOTES[mini(sparks_returned - 1, 2)], -2.0)
 	if sparks_returned >= spark_positions.size():
 		_flee_target = Vector2.INF

@@ -155,8 +155,11 @@ func _update_guide() -> void:
 	if marker.is_reached(world.player.global_position):
 		world.say_once(phase[1], _fill(phase[2]))
 		_phase += 1
+		# The light has done its job: it disappears, so nobody thinks they must stay there.
 		if _phase < phases.size():
 			marker.show_at(_marker_position(phases[_phase][0]))
+		else:
+			marker.visible = false
 
 
 func _fill(lines: Array) -> Array:
@@ -172,6 +175,11 @@ func _fill(lines: Array) -> Array:
 
 # --- Events from the world -----------------------------------------------------------------
 
+## Chords unlocked while a themed challenge (guardian or finale) is running are explained
+## only after that challenge ends, so the explanation doesn't interrupt it.
+var _pending_chords: Array[int] = []
+
+
 func on_blob_freed(blob: EchoBlob) -> void:
 	note_progress()
 	var area := blob.area
@@ -185,59 +193,101 @@ func on_blob_freed(blob: EchoBlob) -> void:
 	var total: int = world.area_total(area)
 	if freed == 1:
 		world.say_once("first_" + area, [{
-			"vista": "Ajudaste a primeira das Grutas. Vês? Agora ela ilumina à sua volta.",
+			"vista": "Ajudaste a primeira blob das Grutas. Vês? Agora ela ilumina à sua volta.",
 			"som": "A primeira voz do Vale ganhou cor. Quanto mais ouvires, mais fácil será reconhecê-las.",
-			"tato": "A primeira do Bosque confiou em ti. Aqui, a calma vale mais do que a pressa.",
+			"tato": "A primeira blob do Bosque confiou em ti. Aqui, a calma vale mais do que a pressa.",
 		}[area]])
 	elif freed * 2 >= total and not game.dialogue_seen("half_" + area):
 		world.say_once("half_" + area, [{
-			"vista": "Já ajudaste metade das Grutas. Repara como já vês mais longe do que quando chegaste.",
-			"som": "Metade do Vale já canta contigo. Agora, quando escolheres a nota certa perto de alguém, vais senti-la vibrar.",
+			"vista": "Já ajudaste metade das blobs das Grutas. Repara como já vês mais longe do que quando chegaste.",
+			"som": "Metade do Vale já canta contigo. Agora, quando escolheres a nota certa perto de uma blob, vais senti-la vibrar.",
 			"tato": "Metade do Bosque já não foge de ti. Ficaram mais pacientes contigo.",
 		}[area]])
 
 
-func on_vassal_awake(letter: String, area: String) -> void:
+func on_vassal_awake(_letter: String, area: String) -> void:
 	note_progress()
-	var where := {"Y": "no fundo das Grutas, a oeste", "C": "no topo do Vale, a norte", "M": "no coração do Bosque, a leste"}
-	world.say_once("awake_" + letter, [
-		"Ajudaste criaturas suficientes em %s. Não precisas de encontrar todas." % world.region_title(area),
-		"O guardião %s acordou, %s. Vai ter com ele quando quiseres." % [letter, where[letter]],
+	world.say_once("awake_" + area, [
+		"Ajudaste blobs suficientes em %s. Não precisas de encontrar todas." % world.region_title(area),
+		"O guardião desta zona acordou, lá no fundo. Ficou sozinho muito tempo... vai ter com ele quando quiseres.",
+	])
+
+
+## Called by the world when the player comes near a guardian that is still asleep.
+func on_near_sleeping_vassal(area: String) -> void:
+	world.say_once("asleep_" + area, [
+		"Este é o guardião desta zona. Está adormecido.",
+		"Vai acordar quando tiveres ajudado blobs suficientes por aqui: %d de %d." % [world.area_needed(area), world.area_total(area)],
 	])
 
 
 func on_vassal_completed(letter: String) -> void:
 	note_progress()
 	var reflection := {
-		"Y": "A Y escondia-se porque tinha medo de ser vista sem a sua luz. Às vezes ajudar é não obrigar ninguém a mostrar-se.",
-		"C": "A C não precisava que falasses por ela. Precisava que a ouvisses até ela se lembrar da própria voz.",
-		"M": "A M tinha espinhos porque já a tinham apressado demasiadas vezes. Tu esperaste.",
+		"Y": "Ela escondia-se porque tinha medo de ser vista sem a sua luz. Às vezes ajudar é não obrigar ninguém a mostrar-se.",
+		"C": "Ela não precisava que falasses por ela. Precisava que a ouvisses até se lembrar da própria voz.",
+		"M": "Ela tinha espinhos porque já a tinham apressado demasiadas vezes. Tu esperaste.",
 	}
+	var color_word := {"Y": "o amarelo", "C": "o ciano", "M": "o magenta"}
 	var lines: Array = [reflection[letter]]
+	if game.cmy_freed_count() == 1:
+		lines.append("Sentes? O mundo ficou menos escuro... e %s voltou. Cada guardião guardava uma das cores do mundo." % color_word[letter])
+	else:
+		lines.append("E %s voltou ao mundo." % color_word[letter])
 	var remaining: Array[String] = []
-	var places := {"Y": "as Grutas, a oeste", "C": "o Vale, a norte", "M": "o Bosque, a leste"}
+	var places := {"Y": "as Grutas, a oeste da Nascente", "C": "o Vale, a norte da Nascente", "M": "o Bosque, a este da Nascente"}
 	for other in ["Y", "C", "M"]:
 		if not game.is_vassal_freed(other) and other != letter:
 			remaining.append(places[other])
 	if remaining.size() == 2:
-		lines.append("Ainda faltam %s e %s." % [remaining[0], remaining[1]])
+		lines.append("Esta zona já está em paz. Ainda há guardiões à espera em %s e %s. As blobs que faltam aqui podem esperar, se quiseres." % [remaining[0], remaining[1]])
 	elif remaining.size() == 1:
-		lines.append("Só falta %s." % remaining[0])
+		lines.append("Só falta um guardião, em %s." % remaining[0])
 	world.say(lines)
+	_flush_pending_chords()
 
 
 func on_chord_unlocked(pc: int) -> void:
 	note_progress()
+	if world.in_themed_challenge():
+		_pending_chords.append(pc)
+		return
+	_explain_chord(pc)
+
+
+func _flush_pending_chords() -> void:
+	for pc in _pending_chords:
+		_explain_chord(pc)
+	_pending_chords.clear()
+
+
+func pending_chords() -> Array[int]:
+	return _pending_chords
+
+
+func _explain_chord(pc: int) -> void:
 	var extras := EchoNotes.triad_extras(pc)
 	var names := "%s, %s e %s" % [EchoNotes.name_for(pc), EchoNotes.name_for(extras[0]), EchoNotes.name_for(extras[1])]
 	if not game.dialogue_seen("first_chord"):
 		world.say_once("first_chord", [
-			"Ajudaste cinco criaturas de %s. Agora essa nota pode soar como um acorde: %s." % [EchoNotes.name_for(pc), EchoNotes.chord_name_for(pc)],
-			"Escolhe %s e carrega %s. O teu ping passa a levar %s ao mesmo tempo, e qualquer criatura dessas cores o ouve." % [EchoNotes.name_for(pc), game.key_label("echo_chord"), names],
+			"Ajudaste cinco blobs de %s. Agora essa nota pode soar como um acorde: %s." % [EchoNotes.name_for(pc), EchoNotes.chord_name_for(pc)],
+			"Escolhe %s e carrega %s. O teu ping passa a levar %s ao mesmo tempo, e qualquer blob dessas cores o ouve." % [EchoNotes.name_for(pc), game.key_label("echo_chord"), names],
 			"Ninguém precisa de acordes... mas tornam muita coisa mais leve. Carrega %s outra vez para voltar a uma nota só." % game.key_label("echo_chord"),
 		])
 	else:
 		world.say(["Também o teu %s pode ser acorde agora: %s (%s)." % [EchoNotes.name_for(pc), EchoNotes.chord_name_for(pc), names]])
+
+
+## First time you come near each kind of advanced challenge: a nudge, never the answer.
+func on_near_set_piece(pattern: String) -> void:
+	var nudges := {
+		"chorus": ["Estas três estão ligadas, e são todas tímidas.", "Se acordares uma de cada vez... o que acontece às outras quando voltas a chamar?"],
+		"neighbours": ["Duas vizinhas que precisam de coisas muito diferentes.", "Talvez a ordem importe. E onde estás quando chamas."],
+		"lake": ["Não consegues chegar perto destas. Só a tua voz atravessa a água."],
+		"current": ["Do outro lado da corrente há uma blob desconfiada. Entrar a correr pode não ser boa ideia."],
+	}
+	if nudges.has(pattern):
+		world.say_once("near_sp_" + pattern, nudges[pattern])
 
 
 # --- Hints ----------------------------------------------------------------------------
@@ -246,6 +296,9 @@ func _idle_hint() -> void:
 	_idle = 0.0
 	var region: String = world.current_region
 	if not region in game.AREAS:
+		return
+	# Once a zone's guardian is free, don't keep pushing the player around that zone.
+	if game.is_vassal_freed(game.AREA_VASSAL[region]):
 		return
 	var player_position: Vector2 = world.player.global_position
 	var best: EchoBlob = null
@@ -256,20 +309,24 @@ func _idle_hint() -> void:
 			best = blob
 	if best == null:
 		return
+	if region == "vista":
+		# Directions make little sense where you can barely see.
+		world.say(["Há mais blobs aqui no escuro. Os teus pings revelam-nas... e cada uma que ajudares deixa-te ver mais longe."])
+		return
 	var direction := direction_word(best.global_position - player_position)
 	var hint := {
-		EchoBlob.Need.NOTE: "Alguém espera a sua nota, para %s.",
+		EchoBlob.Need.NOTE: "Há uma blob que espera a sua nota, para %s.",
 		EchoBlob.Need.SHY: "Há uma tímida para %s. Depois de a acordares, silêncio.",
-		EchoBlob.Need.STIMULATED: "Alguém ansioso, para %s. Vários pings, depressa.",
-		EchoBlob.Need.GENTLE: "Para %s há alguém delicado. Pings curtos, e de perto.",
-		EchoBlob.Need.CAUTIOUS: "Para %s há alguém desconfiado. Aproxima-te devagar.",
-		EchoBlob.Need.WARMTH: "Alguém tem frio, para %s. Fica perto dela um bocadinho.",
+		EchoBlob.Need.STIMULATED: "Há uma blob ansiosa, para %s. Vários pings, depressa.",
+		EchoBlob.Need.GENTLE: "Para %s há uma blob delicada. Pings curtos, e de perto.",
+		EchoBlob.Need.CAUTIOUS: "Para %s há uma blob desconfiada. Aproxima-te devagar.",
+		EchoBlob.Need.WARMTH: "Há uma blob com frio, para %s. Fica perto dela um bocadinho.",
 		EchoBlob.Need.MELODY: "Ouço uma canção para %s. Responde-lhe nota a nota.",
-		EchoBlob.Need.PUSH: "Para %s há alguém longe do ninho. Talvez precise de um empurrão.",
+		EchoBlob.Need.PUSH: "Para %s há uma blob longe do ninho. Talvez precise de um empurrão.",
 	}
 	var text: String = hint.get(best.need, "Ainda há alguém para %s.") % direction
 	if best.hidden_until_pinged and not best.has_answered:
-		text = "Não a vejo, mas ouço alguém para %s. Um ping talvez a revele." % direction
+		text = "Não a vejo, mas ouço uma blob para %s. Um ping talvez a revele." % direction
 	world.say([text])
 
 

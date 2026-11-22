@@ -45,7 +45,7 @@ func show_message(text: String, duration: float = 4.5) -> void:
 	_message_label.modulate.a = 1.0
 
 
-## Screen position of K when it is off screen (Vector2.INF hides the arrow).
+## Screen position of the guide light when it is off screen (Vector2.INF hides the arrow).
 func set_pointer(screen_position: Vector2) -> void:
 	if screen_position == _pointer and screen_position == Vector2.INF:
 		return
@@ -64,9 +64,9 @@ func _draw_pointer() -> void:
 	var tip := at + direction * 14.0
 	var side := direction.orthogonal() * 10.0
 	_pointer_layer.draw_circle(at - direction * 6.0, 17.0, Color(0.08, 0.08, 0.1, 0.85))
-	_pointer_layer.draw_arc(at - direction * 6.0, 17.0, 0.0, TAU, 32, Color(0.9, 0.9, 1.0, 0.8), 2.0, true)
+	_pointer_layer.draw_arc(at - direction * 6.0, 17.0, 0.0, TAU, 32, Color(1.0, 0.95, 0.75, 0.85), 2.0, true)
 	_pointer_layer.draw_colored_polygon(PackedVector2Array([tip + direction * 8.0, tip + side, tip - side]), Color(0.95, 0.95, 1.0, 0.9))
-	_pointer_layer.draw_string(ThemeDB.fallback_font, at - direction * 6.0 + Vector2(-6, 6), "K", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.95))
+	_pointer_layer.draw_circle(at - direction * 6.0, 5.0, Color(1.0, 0.95, 0.75, 0.95))
 
 
 func set_status(text: String) -> void:

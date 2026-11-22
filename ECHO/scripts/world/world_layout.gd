@@ -86,9 +86,10 @@ static func _clearing() -> Dictionary:
 			"pair_a": Vector2(470, 1740), "pair_b": Vector2(770, 1740),
 			"stim": Vector2(140, 2260), "hidden": Vector2(590, 1300),
 			"k_start": Vector2(-330, 1800), "gate": Vector2(0, 960),
-			# Where K waits while guiding you to each creature.
-			"k_fa": Vector2(-300, 1690), "k_mi": Vector2(-70, 1700), "k_shy": Vector2(-410, 1620),
-			"k_pair": Vector2(370, 1660), "k_stim": Vector2(20, 1900), "k_hidden": Vector2(700, 1560),
+			# Tutorial guide lights: exactly where to stand for each lesson.
+			"g_fa": Vector2(-330, 1720), "g_mi": Vector2(220, 1760), "g_shy": Vector2(-600, 1530),
+			"g_pair": Vector2(620, 1575), "g_current": Vector2(115, 1890), "g_stim": Vector2(140, 2140),
+			"g_hidden": Vector2(630, 1460),
 		},
 	}
 

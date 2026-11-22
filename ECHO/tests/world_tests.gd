@@ -121,6 +121,12 @@ func _load_world() -> void:
 	world = packed.instantiate() as GameWorld
 	add_child(world)
 	await frames(5)
+	if world == null or world.geometry == null or world.companion == null:
+		failures.append("the game world failed to load (script error?)")
+		print("
+WORLD FAILED TO LOAD")
+		get_tree().quit(1)
+		await get_tree().create_timer(100.0).timeout
 
 
 func ping_at(at: Vector2, note: int, charge: float = 0.4, chord: bool = false) -> void:
@@ -157,12 +163,22 @@ func _test_full_playthrough() -> void:
 	check(clearing.size() == 7, "clearing has 7 blobs")
 	await test_guide_and_current()
 	for step in world.companion.steps:
+		skip_dialogue()
+		await frames(5)
+		check(world.companion.current_step().get("id", "") == step["id"], "tutorial step '%s' is active in order" % step["id"])
+		# Walk onto each guide light of the step: K explains there.
+		for phase in step["phases"]:
+			world.player.global_position = world.geometry.region_data("clearing")["markers"][phase[0]]
+			world.player.velocity = Vector2.ZERO
+			await frames(10)
+			skip_dialogue()
+			await frames(5)
+			check(game.dialogue_seen(phase[1]), "standing on the light explains '%s'" % phase[1])
 		for blob in clearing:
-			if blob.blob_id == step["blob"] or (step["id"] == "pair" and blob.blob_id == "clearing:pair_b"):
+			if blob.blob_id in step["blobs"]:
+				check(not blob.dormant, "%s woke up for its lesson" % blob.blob_id)
 				await solve_blob(blob, [])
 		await wait(0.5)
-		if step["id"] == "fa":
-			check(world.companion.current_step().get("id", "") == "mi", "after Fá, K guides to the next one (Mi), in order")
 	for blob in clearing:
 		await solve_blob(blob, [])
 	check(game.progress["clearing_done"], "clearing completed, gate opens")
@@ -230,12 +246,27 @@ func _test_full_playthrough() -> void:
 		print("     K: " + str(line[1]))
 
 
+func skip_dialogue() -> void:
+	var guard := 0
+	while world.dialogue.is_busy() and guard < 40:
+		world.dialogue._finish_line()
+		guard += 1
+
+
 func test_guide_and_current() -> void:
-	# K must not explain creatures the player has not seen yet.
-	await wait(4.0)
-	for later in ["explain_shy", "explain_pair", "explain_stim", "explain_mi"]:
-		check(not game.dialogue_seen(later), "K does not explain '%s' before you find it" % later)
-	check(world.companion.current_step().get("id", "") == "fa", "K first guides you to Fá")
+	check(not world.emitter.input_enabled, "no pinging while K's opening speech is running")
+	check(not world.k_body.visible, "K is only a voice (not visible)")
+	var shy := world.companion._blob("clearing:shy")
+	check(shy.dormant and not shy.visible, "later tutorial creatures are dormant and invisible")
+	await ping_at(shy.global_position + Vector2(60, 0), 0, 0.3)
+	check(shy.state == EchoBlob.State.LOST and not shy.has_answered, "a dormant creature ignores pings (no skipping ahead)")
+	skip_dialogue()
+	await frames(5)
+	check(world.emitter.input_enabled, "ping unlocked when the opening speech ends")
+	check(world.companion.current_step().get("id", "") == "fa", "the guide starts with Fá")
+	check(world.companion.guide_target() != Vector2.INF, "a guide light shows where to go")
+	for later in ["explain_shy", "explain_pair", "explain_stim", "explain_mi", "explain_fa"]:
+		check(not game.dialogue_seen(later), "nothing explained before you reach its light ('%s')" % later)
 	# The current south of the glade: walking against it fails, a charged dash crosses it.
 	var current: CurrentZone = world.currents[0]
 	var before := current.global_position + Vector2(0, -current.size.y * 0.5 - 40.0)

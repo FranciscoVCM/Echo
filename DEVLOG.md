@@ -12,6 +12,18 @@
 
 ---
 
+## 2026-11-23 (2) — Tutorial strictly in order; K is only a voice until the end
+
+Feedback: you could ping (and solve Fá) before K finished talking; following K's body didn't trigger the explanations (you had to walk further) and the next creature was hard to find; tutorial must be done in K's order.
+
+- **No pinging until the opening speech ends** ("Já podes usar o ping").
+- **K is invisible until the finale** (the dialogue name is "Voz"); K appears for the first time when it reforms in the finale, which makes "fui eu que te guiei" land.
+- **Guide light** on the ground exactly where to stand for each lesson (and an arrow at the screen edge when it is off screen). Stepping on it triggers the explanation. For the pair it is the spot where one wave reaches both; for the anxious one there are two lights (before the current, then in the pocket).
+- **Strict order**: every tutorial creature stays dormant (invisible, deaf) until its turn; then it appears and calls.
+- Tests: 163 checks, 0 failures (ping locked during the intro, K invisible, dormant creatures ignore pings, each step active in order, each light triggers its explanation).
+
+---
+
 ## 2026-11-23 — Clareira guidance, dash & charged ping, 80% areas, K companion, advanced challenges
 
 Feedback from Francisco after playing: K explained creatures before he found them (shy, the 3-ping one) and he lost 2 creatures; charged ping and dash were never taught; areas shouldn't require every creature; K should keep talking (chords, after vassals); thematic challenges must not be PCG; there should be harder, more creative challenges built from the Clareira ideas, repeating across areas.

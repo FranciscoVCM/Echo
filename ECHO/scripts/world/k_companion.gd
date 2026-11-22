@@ -1,9 +1,10 @@
 class_name KCompanion
 extends Node
-## Everything K says and where K goes.
-## - Clareira: K LEADS you, one creature at a time, in a fixed order. K walks to the next
-##   one and only explains it once you can actually see it (or are right next to it).
-##   The hidden one is hinted at, never explained.
+## Everything K says, and the tutorial guide.
+## K is only a VOICE until the very end (its reveal is part of the ending).
+## - Clareira: strictly in order. Each creature stays dormant (invisible, deaf) until its
+##   turn. Then it appears, a light on the ground shows EXACTLY where to stand, and K
+##   explains when you step on it. Pinging is locked until the opening speech ends.
 ## - Afterwards K keeps talking from afar: first creature of an area, half an area, guardian
 ##   awake (and where), guardian freed (a reflection + where to go next), chords, and a
 ##   gentle hint when you have been stuck for a while.
@@ -12,31 +13,53 @@ const IDLE_HINT_SECONDS := 110.0
 
 var world: GameWorld
 var game: Node
+var marker: GuideMarker
 var _guide_index := -1
+var _phase := 0
 var _idle := 0.0
 
-## Tutorial order. "wait" is the marker where K stands; "explain" fires when you see the blob.
+## Tutorial order. "blobs": creatures of the step; "spot": guide light marker name.
+## "phases": [spot, dialogue key, lines] in sequence (most steps have one).
 var steps := [
-	{"id": "fa", "blob": "clearing:fa", "wait": "k_fa", "explain": [
-		"Vês aquela? Está verde... e o verde é Fá.",
-		"Escolhe a nota com %s a %s. Se lhe chamares com a nota errada, ela responde com a sua: ouve-a, e depois responde-lhe.",
+	{"id": "fa", "blobs": ["clearing:fa"], "go": "Vês aquela luz no chão? Vai até lá.", "phases": [
+		["g_fa", "explain_fa", [
+			"Vês aquela criatura? Está verde... e o verde é Fá.",
+			"Escolhe a nota com %NOTES%. Se lhe chamares com a nota errada, ela responde com a sua: ouve-a, e depois responde-lhe.",
+		]],
 	]},
-	{"id": "mi", "blob": "clearing:mi", "wait": "k_mi", "explain": [
-		"Aquela, no meio do lago, é amarela: Mi. Não consegues chegar lá a nadar.",
-		"Um ping curto não chega tão longe. Mantém %s mais tempo antes de largar: quanto mais carregas, mais longe vai.",
+	{"id": "mi", "blobs": ["clearing:mi"], "go": "Muito bem. Agora segue a luz outra vez.", "phases": [
+		["g_mi", "explain_mi", [
+			"Aquela, no meio do lago, é amarela: Mi. Não consegues chegar lá a nadar.",
+			"Daqui, um ping curto não chega. Mantém %PING% mais tempo antes de largar: quanto mais carregas, mais longe vai.",
+		]],
 	]},
-	{"id": "shy", "blob": "clearing:shy", "wait": "k_shy", "explain": [
-		"Shh... esta é tímida. Acorda-a com a nota dela...",
-		"...e depois deixa-a em paz. Qualquer som, mesmo outra nota, assusta-a outra vez. Ela mostra-te quanto tempo falta.",
+	{"id": "shy", "blobs": ["clearing:shy"], "go": "Há mais alguém, a oeste. Segue a luz.", "phases": [
+		["g_shy", "explain_shy", [
+			"Shh... ali, vermelha. É tímida. Acorda-a com a nota dela...",
+			"...e depois deixa-a em paz. Qualquer som, mesmo outra nota, assusta-a outra vez. Ela mostra-te quanto tempo falta.",
+		]],
 	]},
-	{"id": "pair", "blob": "clearing:pair_a", "wait": "k_pair", "explain": [
-		"Estas duas estão separadas pela pedra. Precisam de ouvir o mesmo chamamento ao mesmo tempo.",
-		"Uma só onda que chegue às duas. Procura o sítio de onde as consegues ver a ambas.",
+	{"id": "pair", "blobs": ["clearing:pair_a", "clearing:pair_b"], "go": "Agora para este. Segue a luz.", "phases": [
+		["g_pair", "explain_pair", [
+			"Estas duas estão separadas pela pedra. Precisam de ouvir o mesmo chamamento ao mesmo tempo.",
+			"Daqui consegues chegar às duas. Uma só onda: chama-as.",
+		]],
 	]},
-	{"id": "stim", "blob": "clearing:stim", "wait": "k_stim", "explain": [
-		"Esta está ansiosa por companhia. Repara no que ela te mostra: quantas vezes, e em quanto tempo.",
+	{"id": "stim", "blobs": ["clearing:stim"], "go": "Ainda há alguém para sul. Segue a luz.", "phases": [
+		["g_current", "explain_current", [
+			"Há alguém do outro lado desta corrente. A andar, ela empurra-te para trás.",
+			"Mantém %DASH% para ganhar balanço e larga para dar um salto. Quanto mais tempo carregas, mais longe vais.",
+		]],
+		["g_stim", "explain_stim", [
+			"Esta está ansiosa por companhia. Repara no que ela te mostra: quantas vezes, e em quanto tempo.",
+		]],
 	]},
-	{"id": "hidden", "blob": "clearing:hidden", "wait": "k_hidden", "explain": []},
+	{"id": "hidden", "blobs": ["clearing:hidden"], "go": "Quase... mas ainda falta alguém. Segue a luz.", "phases": [
+		["g_hidden", "hint_hidden", [
+			"Não a vejo... mas ouço-a. Algures aqui perto.",
+			"Há quem só apareça quando um ping lhe toca.",
+		]],
+	]},
 ]
 
 
@@ -47,6 +70,16 @@ func _init(owner_world: GameWorld) -> void:
 
 func _ready() -> void:
 	game = get_node("/root/Game")
+	marker = GuideMarker.new()
+	marker.name = "GuideMarker"
+	world.add_child.call_deferred(marker)
+	if not game.progress["clearing_done"]:
+		# Future creatures wait, invisible, until the guide reaches them.
+		for step in steps:
+			for blob_id in step["blobs"]:
+				var blob := _blob(blob_id)
+				if blob != null and not blob.is_freed():
+					blob.set_dormant(true)
 
 
 func _process(delta: float) -> void:
@@ -72,7 +105,7 @@ func _blob(blob_id: String) -> EchoBlob:
 	return null
 
 
-func _marker(name: String) -> Vector2:
+func _marker_position(name: String) -> Vector2:
 	return world.geometry.region_data("clearing")["markers"][name]
 
 
@@ -82,60 +115,59 @@ func current_step() -> Dictionary:
 	return steps[_guide_index]
 
 
+func guide_target() -> Vector2:
+	return marker.global_position if marker != null and marker.visible else Vector2.INF
+
+
+func _step_done(step: Dictionary) -> bool:
+	for blob_id in step["blobs"]:
+		var blob := _blob(blob_id)
+		if blob != null and not blob.is_freed():
+			return false
+	return true
+
+
 func _update_guide() -> void:
-	# The next step is the first creature (in order) that still needs help.
+	if not game.dialogue_seen("intro") or (world.intro_running() and _guide_index < 0):
+		return
 	var index := -1
 	for step_index in range(steps.size()):
-		var blob := _blob(steps[step_index]["blob"])
-		if blob != null and not blob.is_freed():
+		if not _step_done(steps[step_index]):
 			index = step_index
 			break
 	if index < 0:
+		marker.visible = false
 		return
 	var step: Dictionary = steps[index]
 	if index != _guide_index:
 		_guide_index = index
-		var wait := _marker(step["wait"])
-		world.k_body.glide_to(wait, clampf(world.k_body.global_position.distance_to(wait) / 260.0, 0.6, 4.0))
-		if index > 0:
-			var go_lines := {"mi": "Agora por aqui. Segue-me.", "shy": "Há mais alguém, a oeste. Vem.", "pair": "Para este. Duas que se perderam uma da outra.", "stim": "Ainda há alguém para sul. Vem comigo.", "hidden": "Quase... mas ainda falta alguém."}
-			world.say([go_lines.get(step["id"], "Por aqui.")])
-	if world.dialogue.is_busy():
+		_phase = 0
+		for blob_id in step["blobs"]:
+			var blob := _blob(blob_id)
+			if blob != null:
+				blob.set_dormant(false)
+		marker.show_at(_marker_position(step["phases"][0][0]))
+		world.say([step["go"]])
+	var phases: Array = step["phases"]
+	if _phase >= phases.size() or world.dialogue.is_busy():
 		return
-	var blob := _blob(step["blob"])
-	var player_position: Vector2 = world.player.global_position
-	var sees := world.fov.is_point_visible(blob.global_position) or player_position.distance_to(blob.global_position) < 200.0
-	var near_k := player_position.distance_to(world.k_body.global_position) < 170.0
-	if step["id"] == "stim" and not game.dialogue_seen("explain_current") and (near_k or _near_current(player_position)):
-		world.say_once("explain_current", [
-			"Há alguém do outro lado desta corrente. A andar, ela empurra-te para trás.",
-			"Mantém %s para ganhar balanço e larga para dar um salto. Quanto mais tempo carregas, mais longe vais." % game.key_label("echo_dash"),
-		])
-		return
-	if step["id"] == "hidden":
-		if not game.dialogue_seen("hint_hidden") and (near_k or sees):
-			world.say_once("hint_hidden", [
-				"Não a vejo... mas ouço-a. Algures aqui perto, para norte.",
-				"Há quem só apareça quando um ping lhe toca.",
-			])
-		return
-	if not game.dialogue_seen("explain_" + step["id"]) and sees:
-		var lines: Array = []
-		for line in step["explain"]:
-			var text: String = line
-			if text.contains("%s a %s"):
-				text = text % [game.key_label("echo_note_1"), game.key_label("echo_note_7")]
-			elif text.contains("%s"):
-				text = text % game.key_label("echo_ping")
-			lines.append(text)
-		world.say_once("explain_" + step["id"], lines)
+	var phase: Array = phases[_phase]
+	if marker.is_reached(world.player.global_position):
+		world.say_once(phase[1], _fill(phase[2]))
+		_phase += 1
+		if _phase < phases.size():
+			marker.show_at(_marker_position(phases[_phase][0]))
 
 
-func _near_current(point: Vector2) -> bool:
-	for current in world.currents:
-		if current.global_position.distance_to(point) < 230.0:
-			return true
-	return false
+func _fill(lines: Array) -> Array:
+	var result: Array = []
+	for line in lines:
+		var text: String = line
+		text = text.replace("%NOTES%", "%s a %s" % [game.key_label("echo_note_1"), game.key_label("echo_note_7")])
+		text = text.replace("%PING%", game.key_label("echo_ping"))
+		text = text.replace("%DASH%", game.key_label("echo_dash"))
+		result.append(text)
+	return result
 
 
 # --- Events from the world -----------------------------------------------------------------

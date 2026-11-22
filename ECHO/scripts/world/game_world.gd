@@ -33,6 +33,7 @@ var _opacity_target := 0.7
 var _pause_menu: CanvasLayer
 var companion: KCompanion
 var currents: Array[CurrentZone] = []
+var _intro_running := false
 
 
 func _ready() -> void:
@@ -90,6 +91,9 @@ func _ready() -> void:
 	_apply_tone()
 	_refresh_area_ease()
 	if not _game.progress["clearing_done"] and not _game.dialogue_seen("intro"):
+		# No pinging until the opening speech is over (so nothing is solved before it's taught).
+		emitter.input_enabled = false
+		_intro_running = true
 		_say_once("intro", [
 			"...Olá, pequena. Consegues ouvir-me?",
 			"Este mundo perdeu a cor. E as criaturas perderam-se umas das outras.",
@@ -312,6 +316,8 @@ func _spawn_k() -> void:
 	k_body.always_visible = true
 	k_body.glow = 0.3
 	k_body.collision_layer = 0
+	# K is never seen until it reveals itself during the finale.
+	k_body.visible = _game.is_vassal_freed("K")
 	if _game.is_vassal_freed("K"):
 		k_body.position = Vector2(0, 0)
 	elif _game.progress["clearing_done"]:
@@ -592,8 +598,17 @@ func _update_grading(animate: bool) -> void:
 
 # --- K: tutorial triggers ---------------------------------------------------------------
 
+## K is only a voice ("Voz") until it reveals itself at the very end.
 func say(lines: Array, speaker: String = "K", sequence_id: String = "") -> void:
-	dialogue.say(lines, speaker, sequence_id)
+	var revealed: bool = _final_stage >= 2 or _game.is_vassal_freed("K")
+	var voice := "K" if revealed else "Voz"
+	var mapped: Array = []
+	for line in lines:
+		if line is Array:
+			mapped.append([voice if line[0] == "K" else line[0], line[1]])
+		else:
+			mapped.append(line)
+	dialogue.say(mapped, voice if speaker == "K" else speaker, sequence_id)
 
 
 func _say_once(key: String, lines: Array, speaker: String = "K") -> void:
@@ -607,8 +622,12 @@ func _update_k_pointer() -> void:
 	if _game.progress["clearing_done"] or current_region != "clearing":
 		hud.set_pointer(Vector2.INF)
 		return
+	var target := companion.guide_target()
+	if target == Vector2.INF:
+		hud.set_pointer(Vector2.INF)
+		return
 	var canvas := get_viewport().get_canvas_transform()
-	var screen := canvas * k_body.global_position
+	var screen := canvas * target
 	var size := get_viewport().get_visible_rect().size
 	if Rect2(Vector2(40, 40), size - Vector2(80, 80)).has_point(screen):
 		hud.set_pointer(Vector2.INF)
@@ -616,8 +635,15 @@ func _update_k_pointer() -> void:
 		hud.set_pointer(screen)
 
 
-func _on_dialogue_finished(_sequence_id: String) -> void:
-	pass
+func _on_dialogue_finished(sequence_id: String) -> void:
+	if sequence_id == "intro":
+		_intro_running = false
+		emitter.input_enabled = true
+		hud.show_message("Já podes usar o ping (%s)." % _key("echo_ping"), 3.0)
+
+
+func intro_running() -> bool:
+	return _intro_running
 
 
 # --- K: final challenge -----------------------------------------------------------------

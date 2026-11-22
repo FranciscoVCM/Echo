@@ -23,6 +23,15 @@ func _run() -> void:
 	add_child(world)
 	await _wait(1.5)
 	await _shot("01_clearing_start")
+	while world.dialogue.is_busy():
+		world.dialogue._finish_line()
+	await _wait(1.0)
+	await _shot("01b_guide_light")
+	world.player.global_position = Vector2(-330, 1720)
+	await _wait(1.2)
+	await _shot("01c_on_the_light")
+	while world.dialogue.is_busy():
+		world.dialogue._finish_line()
 	await _goto(Vector2(-60, 1690))
 	await _ping(2, 0.6)
 	await _wait(0.6)

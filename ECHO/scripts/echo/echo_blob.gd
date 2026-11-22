@@ -67,6 +67,8 @@ var ease := 0.0
 var resonance_hint := false
 
 var state := State.LOST
+## Tutorial: not its turn yet. Invisible, silent and deaf until the guide reaches it.
+var dormant := false
 var group: EchoBlobGroup
 var hits := 0
 var has_answered := false
@@ -157,6 +159,8 @@ func _process(delta: float) -> void:
 
 
 func _process_lost(delta: float) -> void:
+	if dormant:
+		return
 	var interval := call_interval * lerpf(1.0, 0.5, ease) if singer else call_interval
 	_call_timer -= delta
 	if _call_timer <= 0.0:
@@ -253,8 +257,16 @@ func _move_toward_target(_delta: float, speed: float) -> void:
 
 # --- Ping reception -------------------------------------------------------------------
 
+func set_dormant(value: bool) -> void:
+	dormant = value
+	if dormant:
+		visible = false
+	else:
+		_call_timer = 0.3  # announce itself as soon as it becomes part of the story
+
+
 func receive_ping_wave(wave: PingWave) -> void:
-	if wave.is_echo():
+	if wave.is_echo() or dormant:
 		return
 	_revealed = true
 	EchoMarker.spawn(global_position, _display_color(), body_radius, get_tree())
@@ -477,6 +489,9 @@ func _add_stat(key: String) -> void:
 # --- Field of view ---------------------------------------------------------------------
 
 func set_fov_visible(is_in_view: bool) -> void:
+	if dormant:
+		visible = false
+		return
 	if hidden_until_pinged and not _revealed and state != State.FREED:
 		is_in_view = false
 	super.set_fov_visible(is_in_view)

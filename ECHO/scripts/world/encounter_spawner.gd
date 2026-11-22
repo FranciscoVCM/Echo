@@ -19,7 +19,13 @@ static func spawn(spec: Dictionary, parent: Node, geometry: WorldGeometry) -> Ar
 	if spec.get("group", "") != "":
 		group = EchoBlobGroup.new()
 		group.name = "Group_" + str(spec.get("id", "x")).replace(":", "_")
-		group.mode = EchoBlobGroup.Mode.SAME_WAVE if spec["group"] == "same_wave" else EchoBlobGroup.Mode.CLUSTER
+		match spec["group"]:
+			"same_wave":
+				group.mode = EchoBlobGroup.Mode.SAME_WAVE
+			"cluster":
+				group.mode = EchoBlobGroup.Mode.CLUSTER
+			_:
+				group.mode = EchoBlobGroup.Mode.TOGETHER
 		container = group
 	var blobs: Array[EchoBlob] = []
 	for data in spec["blobs"]:
@@ -56,6 +62,7 @@ static func make_blob(data: Dictionary, area: String) -> EchoBlob:
 		blob.melody = melody
 	if data.has("nest"):
 		blob.nest_position = Vector2(data["nest"][0], data["nest"][1])
+	blob.anchored = bool(data.get("anchored", false))
 	if data.has("radius"):
 		blob.body_radius = float(data["radius"])
 	return blob

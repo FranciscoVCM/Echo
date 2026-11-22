@@ -51,7 +51,7 @@ func _ready() -> void:
 	add_to_group("ping_blobs")
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	collision_layer = 1
-	collision_mask = 2
+	collision_mask = 0  # enabled only while moving (see slide()), for performance
 	_shape = CollisionShape2D.new()
 	var circle := CircleShape2D.new()
 	circle.radius = radius * 0.8
@@ -109,6 +109,12 @@ func receive_ping_wave(wave: PingWave) -> void:
 				_finish_mode()
 			else:
 				_jolt = 1.0
+
+
+func slide() -> void:
+	collision_mask = 2 | 8
+	move_and_slide()
+	collision_mask = 0
 
 
 func start_melody(notes: PackedInt32Array) -> void:

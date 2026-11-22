@@ -12,7 +12,7 @@ var _material: ShaderMaterial
 
 
 func _ready() -> void:
-	z_index = -1
+	z_index = -2  # environment is drawn below this; water, currents and creatures above
 	_material = ShaderMaterial.new()
 	_material.shader = SHADER
 	material = _material

@@ -36,6 +36,8 @@ const PROXIMITY_CLOSE := 130.0
 @export var grey := false
 ## Sings its note (or melody) regularly and clearly.
 @export var singer := false
+## Never moves (e.g. sits on a lily pad in a lake).
+@export var anchored := false
 
 @export_category("Temperament")
 @export_range(1.0, 20.0, 0.5) var shy_silence := 5.0
@@ -98,7 +100,10 @@ var _sing_timer := 0.0
 func _ready() -> void:
 	super._ready()
 	add_to_group("echo_blobs")
-	collision_mask = 3
+	# The mask stays empty at rest: a resting body whose mask includes the walls is paired
+	# with the whole world collision every physics step (very expensive). We only enable
+	# walls (2) + water (8) for the instant the creature actually moves (see _slide()).
+	collision_mask = 0
 	if need == Need.MELODY and melody.is_empty():
 		melody = PackedInt32Array([note, posmod(note + 2, 7)])
 	if need == Need.MELODY:
@@ -220,9 +225,17 @@ func _physics_push(delta: float) -> void:
 		velocity = to_blob.normalized() * maxf(player_velocity.length() * 0.95, 60.0)
 	else:
 		velocity = velocity.move_toward(Vector2.ZERO, 600.0 * delta)
-	move_and_slide()
+	_slide()
 	if global_position.distance_to(nest_position) <= nest_radius:
 		free_blob()
+
+
+func _slide() -> void:
+	if anchored:
+		return
+	collision_mask = 2 | 8
+	move_and_slide()
+	collision_mask = 0
 
 
 func _move_toward_target(_delta: float, speed: float) -> void:
@@ -232,7 +245,7 @@ func _move_toward_target(_delta: float, speed: float) -> void:
 		velocity = Vector2.ZERO
 		return
 	velocity = offset.normalized() * speed
-	move_and_slide()
+	_slide()
 	if get_slide_collision_count() > 0:
 		_fleeing = false
 		velocity = Vector2.ZERO
@@ -260,7 +273,7 @@ func receive_ping_wave(wave: PingWave) -> void:
 
 
 func _on_lost_ping(wave: PingWave, matched: bool) -> void:
-	if group != null:
+	if group != null and group.mode != EchoBlobGroup.Mode.TOGETHER:
 		if matched:
 			_hit_flash = 1.0
 		else:
@@ -293,7 +306,7 @@ func _on_lost_ping(wave: PingWave, matched: bool) -> void:
 			if wave.get_charge() > max_charge:
 				hits = 0
 				_scared = 1.0
-				_fleeing = true
+				_fleeing = not anchored
 				_flee_target = global_position + (global_position - wave.global_position).normalized() * 90.0
 				_set_emote("!", 1.0)
 				_add_stat("scares")
@@ -527,6 +540,10 @@ func _draw() -> void:
 	var shake := Vector2(sin(_time * 38.0) * 4.0 * _jolt, 0.0)
 	if state == State.WAKING:
 		shake.x += sin(_time * 30.0) * 1.2 * clampf(_shy_remaining / shy_silence, 0.0, 1.0)
+	if anchored:
+		# Lily pad under creatures that live on the water.
+		draw_circle(Vector2(0, 6), _base_radius * 1.25, Color(0.25, 0.5, 0.3, 0.85))
+		draw_arc(Vector2(0, 6), _base_radius * 1.25, 0.2, TAU - 0.3, 24, Color(0.4, 0.7, 0.45, 0.9), 2.0, true)
 	if _resonating():
 		shake += Vector2(sin(_time * 55.0), cos(_time * 47.0)) * 1.6
 		draw_circle(Vector2.ZERO, body_radius + 10.0, Color(1, 1, 1, 0.08 + 0.05 * sin(_time * 12.0)))

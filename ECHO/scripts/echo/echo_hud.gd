@@ -13,6 +13,8 @@ var _status_label: Label
 var _message_label: Label
 var _message_time := 0.0
 var _note_strip: Control
+var _pointer_layer: Control
+var _pointer := Vector2.INF
 
 
 func _ready() -> void:
@@ -21,6 +23,11 @@ func _ready() -> void:
 	_build_status()
 	_build_message()
 	_build_note_strip()
+	_pointer_layer = Control.new()
+	_pointer_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_pointer_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pointer_layer.draw.connect(_draw_pointer)
+	add_child(_pointer_layer)
 	var game := get_node_or_null("/root/Game")
 	if game != null:
 		game.progress_changed.connect(_note_strip.queue_redraw)
@@ -36,6 +43,30 @@ func show_message(text: String, duration: float = 4.5) -> void:
 	_message_label.text = text
 	_message_time = duration
 	_message_label.modulate.a = 1.0
+
+
+## Screen position of K when it is off screen (Vector2.INF hides the arrow).
+func set_pointer(screen_position: Vector2) -> void:
+	if screen_position == _pointer and screen_position == Vector2.INF:
+		return
+	_pointer = screen_position
+	_pointer_layer.queue_redraw()
+
+
+func _draw_pointer() -> void:
+	if _pointer == Vector2.INF:
+		return
+	var size := _pointer_layer.size
+	var center := size * 0.5
+	var direction := (_pointer - center).normalized()
+	var margin := Vector2(46, 46)
+	var at := _pointer.clamp(margin, size - margin)
+	var tip := at + direction * 14.0
+	var side := direction.orthogonal() * 10.0
+	_pointer_layer.draw_circle(at - direction * 6.0, 17.0, Color(0.08, 0.08, 0.1, 0.85))
+	_pointer_layer.draw_arc(at - direction * 6.0, 17.0, 0.0, TAU, 32, Color(0.9, 0.9, 1.0, 0.8), 2.0, true)
+	_pointer_layer.draw_colored_polygon(PackedVector2Array([tip + direction * 8.0, tip + side, tip - side]), Color(0.95, 0.95, 1.0, 0.9))
+	_pointer_layer.draw_string(ThemeDB.fallback_font, at - direction * 6.0 + Vector2(-6, 6), "K", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.95))
 
 
 func set_status(text: String) -> void:

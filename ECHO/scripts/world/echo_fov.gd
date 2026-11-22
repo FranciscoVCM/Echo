@@ -25,6 +25,9 @@ var _segments: Array = []
 var _filter_center := Vector2(INF, INF)
 var _world_polygon := PackedVector2Array()
 var _last_position := Vector2(INF, INF)
+var _covered := Rect2()
+var _tick := 0
+var _last_reach := 0.0
 var _last_canvas := Transform2D()
 var _last_segment_count := -1
 
@@ -51,7 +54,9 @@ func _physics_process(_delta: float) -> void:
 	if target.global_position.distance_to(_filter_center) > 160.0:
 		_refilter()
 	_update_visibility()
-	_update_blob_visibility()
+	_tick += 1
+	if _tick % 3 == 0:
+		_update_blob_visibility()
 
 
 func _refilter() -> void:
@@ -75,21 +80,41 @@ func _update_visibility() -> void:
 	var view_min := inverse * Vector2.ZERO
 	var view_max := inverse * viewport_size
 	var position := target.global_position
-	var unchanged := position.distance_squared_to(_last_position) < 0.25 and canvas == _last_canvas and _all_segments.size() == _last_segment_count
+	# The polygon is in world space: only recompute after real movement, or when the view
+	# leaves the (padded) area it was computed for. Uploading it every frame is cheap.
+	var view := Rect2(view_min, view_max - view_min)
+	var unchanged := position.distance_squared_to(_last_position) < 4.0 and absf(_last_reach - vision_radius) < 4.0 and _all_segments.size() == _last_segment_count
 	if not unchanged:
 		_last_position = position
 		_last_canvas = canvas
 		_last_segment_count = _all_segments.size()
+		_last_reach = vision_radius
 		_recompute_polygon(position, view_min, view_max)
 	_upload(canvas, viewport_size, position)
 
 
+## Visibility polygon from physics raycasts (native code, ~1 ms), only as far as the
+## player can see. Outside the polygon the fog is full anyway; lights are handled apart.
+const RAY_COUNT := 256
+
+
 func _recompute_polygon(position: Vector2, view_min: Vector2, view_max: Vector2) -> void:
-	var pad := Vector2(40, 40)
-	if _segments.is_empty():
-		_world_polygon = PackedVector2Array([view_min - pad, Vector2(view_max.x, view_min.y) + Vector2(pad.x, -pad.y), view_max + pad, Vector2(view_min.x, view_max.y) + Vector2(-pad.x, pad.y)])
-	else:
-		_world_polygon = VisibilityPolygon.compute_viewport(position, _segments, view_min - pad, view_max + pad)
+	_covered = Rect2(view_min - Vector2(120, 120), view_max - view_min + Vector2(240, 240))
+	var space := target.get_world_2d().direct_space_state
+	var reach := vision_radius + edge_softness * 0.5 + 40.0
+	var query := PhysicsRayQueryParameters2D.new()
+	query.collision_mask = 2
+	if target is CollisionObject2D:
+		query.exclude = [(target as CollisionObject2D).get_rid()]
+	var polygon := PackedVector2Array()
+	polygon.resize(RAY_COUNT)
+	query.from = position
+	for index in range(RAY_COUNT):
+		var end := position + Vector2.RIGHT.rotated(TAU * index / RAY_COUNT) * reach
+		query.to = end
+		var hit := space.intersect_ray(query)
+		polygon[index] = hit["position"] if not hit.is_empty() else end
+	_world_polygon = polygon
 
 
 func _upload(canvas: Transform2D, viewport_size: Vector2, position: Vector2) -> void:

@@ -55,7 +55,7 @@ func _physics_process(delta: float) -> void:
 			_rolling_to = Vector2.INF
 		else:
 			velocity = offset.normalized() * 260.0
-			move_and_slide()
+			slide()
 		return
 	var player_node := EchoBlob.player
 	var distance := player_node.global_position.distance_to(global_position)

@@ -12,6 +12,8 @@ const CHORD_UNLOCK_COUNT := 5
 const NOTE_COUNT := 7
 const AREAS: PackedStringArray = ["vista", "som", "tato"]
 const AREA_VASSAL := {"vista": "Y", "som": "C", "tato": "M"}
+## Fraction of an area's creatures that must be helped before its guardian wakes.
+const AREA_WAKE_RATIO := 0.8
 
 ## Rebindable actions: name -> [label, default physical keycode]. Movement also keeps arrows.
 const ACTIONS := [
@@ -157,6 +159,8 @@ func new_progress(seed_value: int = -1) -> void:
 			"startles": 0, "scares": 0, "gentle_approaches": 0,
 		},
 		"ended": false,
+		## Chords given by K at the start of the finale (so every chord can be used there).
+		"granted_chords": false,
 	}
 
 
@@ -199,13 +203,23 @@ func freed_count_in_area(area: String) -> int:
 func unlocked_chords() -> Array[int]:
 	var chords: Array[int] = []
 	for pc in range(NOTE_COUNT):
-		if freed_count_for_note(pc) >= CHORD_UNLOCK_COUNT:
+		if is_chord_unlocked(pc):
 			chords.append(pc)
 	return chords
 
 
 func is_chord_unlocked(pitch_class: int) -> bool:
-	return freed_count_for_note(pitch_class) >= CHORD_UNLOCK_COUNT
+	return progress.get("granted_chords", false) or freed_count_for_note(pitch_class) >= CHORD_UNLOCK_COUNT
+
+
+func grant_all_chords() -> Array[int]:
+	var missing: Array[int] = []
+	for pc in range(NOTE_COUNT):
+		if not is_chord_unlocked(pc):
+			missing.append(pc)
+	progress["granted_chords"] = true
+	progress_changed.emit()
+	return missing
 
 
 func free_vassal(letter: String) -> void:

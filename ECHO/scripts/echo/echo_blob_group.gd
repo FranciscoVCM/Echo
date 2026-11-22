@@ -9,7 +9,11 @@ extends Node2D
 
 signal resolved(group: EchoBlobGroup)
 
-enum Mode { SAME_WAVE, CLUSTER }
+enum Mode {
+	SAME_WAVE,
+	CLUSTER,
+	TOGETHER,  ## only draws the link; members are helped one by one (e.g. the shy chorus)
+}
 
 @export var mode: Mode = Mode.SAME_WAVE
 ## How long a partial SAME_WAVE mark stays visible before the blob feels alone again.
@@ -40,7 +44,7 @@ func is_resolved() -> bool:
 
 
 func on_member_pinged(blob: EchoBlob, matched: bool, wave_id: int) -> void:
-	if _resolved or not matched:
+	if _resolved or not matched or mode == Mode.TOGETHER:
 		return
 	match mode:
 		Mode.SAME_WAVE:
@@ -60,6 +64,13 @@ func on_member_pinged(blob: EchoBlob, matched: bool, wave_id: int) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	if mode == Mode.TOGETHER and not _resolved:
+		var all_freed := true
+		for member in members:
+			all_freed = all_freed and member.is_freed()
+		if all_freed:
+			_resolved = true
+			resolved.emit(self)
 	if not _resolved and mode == Mode.SAME_WAVE:
 		var any_marked := false
 		for member in members:

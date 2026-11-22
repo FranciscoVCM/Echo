@@ -12,6 +12,38 @@
 
 ---
 
+## 2026-11-23 — Clareira guidance, dash & charged ping, 80% areas, K companion, advanced challenges
+
+Feedback from Francisco after playing: K explained creatures before he found them (shy, the 3-ping one) and he lost 2 creatures; charged ping and dash were never taught; areas shouldn't require every creature; K should keep talking (chords, after vassals); thematic challenges must not be PCG; there should be harder, more creative challenges built from the Clareira ideas, repeating across areas.
+
+**Clareira (redesigned):**
+- K now *leads*: one creature at a time, in order (Fá → Mi → tímida → par → ansiosa → escondida). K walks to the next one and only explains it once you can **see** it. An arrow at the screen edge points to K when it is off screen.
+- **Charged ping**: Mi sits on a lily pad in the middle of a pond. A quick ping falls short; K explains holding E longer.
+- **Dash**: the anxious one is behind a **current** that pushes you back faster than you walk; K explains holding/releasing Space. Going with the flow always works (no softlock). Dash is a bit longer in the world (1000 px/s, 0.32 s).
+- The hidden one is hinted at ("I can hear her... a ping might reveal her"), never explained.
+
+**New world tools:** water (blocks walking, not ping or sight; drawn in colour because it is gameplay information) and currents (dash to cross).
+
+**Areas:** the guardian wakes at **80%** of the area's creatures (HUD: "O guardião acorda aos N"). When the finale starts, K **grants any chords you are missing**, so chords can always be used there.
+
+**K companion** (`scripts/world/k_companion.gd`): explains the first chord in detail wherever you are (and each new one briefly); comments on the first creature of an area, half an area (and how the area got easier), the guardian waking (and where), each guardian freed (a reflection + which areas remain); after ~2 minutes without progress gives a hint about the nearest creature (direction + what kind).
+
+**Advanced challenges, hand-designed, not PCG** (`scripts/world/set_pieces.gd`), templates repeated with variations:
+| Template | Idea | Where |
+|---|---|---|
+| Coro tímido | 3 shy of one colour around a rock: waking them one by one startles the others; one wave + silence works | Grutas (hidden, dark), Vale (grey) |
+| Vizinhas | opposite needs side by side (anxious + shy; warmth + shy): order and position matter | Vale, Bosque |
+| Lago | creatures on lily pads: only long pings from the shore (anxious on water, 2-hit, a song, a gentle one that still needs soft pings from close enough) | Grutas, Vale, Bosque |
+| Atrás da corrente | dash into an alcove... to a cautious one that flees if you arrive at full speed | Bosque |
+| Canção escondida | hidden creature with a 3-note song | Grutas |
+PCG still fills the rest with simpler encounters. The guardians (C, M, Y) and K were always hand-designed.
+
+**Performance** (found while testing): 39 → ~80–130 FPS. (1) Geometry is drawn as many small canvas items so off-screen parts are culled. (2) Creatures keep their collision mask empty at rest; it was pairing each one with the whole world collision every physics step (~17 ms). (3) The fog's visibility polygon now comes from 256 native raycasts limited to the vision radius (2 ms instead of 18 ms).
+
+**Tests:** `world_tests` 136 checks, 0 failures (K never explains a creature before you see it, guides in order; walking cannot cross a current, a charged dash can, the flow carries you back; guardians sleep on arrival and wake at 80%; full playthrough incl. advanced challenges, guardians, K finale). UI smoke OK. Arena still runs. `tests/perf_probe.tscn` measures FPS per region.
+
+---
+
 ## 2026-11-22 (2) — Full game loop: Clareira → 3 sense areas → C/M/Y → K → ending
 
 Direction from Francisco after playing the first slice:
@@ -44,6 +76,8 @@ Freeing C, M, Y restores that ink to the environment (CMYK grading pass that onl
 **UI:** title screen (Continuar / Novo jogo / Opções / Sair, plus TEST: skip Clareira, original arena), options (volume, fullscreen, note names, **key rebinding** for every action), pause (Esc), non-blocking dialogue (Enter skips), HUD (note strip with per-note chord progress x/5, region, area progress, colours restored). Save/continue (`user://save.json`).
 
 **Test-only keys** (only after the TEST button): F10 = help every creature in the current area, F11 = travel hub → caves → valley → forest.
+
+(Superseded in part by the 2026-11-23 entry above: 80% rule, K companion, advanced challenges.)
 
 ### Changes to the colleague's code (small, backwards compatible)
 - `player_controller.gd`: uses the rebindable input actions when they exist (falls back to the original hard-coded keys), slow walk (Shift), `controls_enabled`.

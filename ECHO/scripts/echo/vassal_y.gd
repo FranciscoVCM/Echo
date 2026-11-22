@@ -70,7 +70,7 @@ func _physics_process(delta: float) -> void:
 			velocity = Vector2.ZERO
 		else:
 			velocity = offset.normalized() * 190.0
-			move_and_slide()
+			slide()
 			if get_slide_collision_count() > 0 and velocity.length() < 5.0:
 				_flee_target = Vector2.INF
 	var _unused := delta

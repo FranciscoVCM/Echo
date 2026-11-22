@@ -61,8 +61,8 @@ func _test_geometry_and_pcg() -> void:
 	check(geometry.outer_loops.size() == 1, "the whole world is one connected walkable space")
 	for region in geometry.regions:
 		for marker in region["markers"]:
-			if marker.ends_with("gate"):
-				continue
+			if marker.ends_with("gate") or geometry.is_in_water(region["markers"][marker]):
+				continue  # gates sit in passages; some creatures live on the water
 			check(geometry.is_walkable(region["markers"][marker], 25.0), "marker %s/%s is walkable" % [region["name"], marker])
 		for site in region["sites"]:
 			check(geometry.is_walkable(site[0], 30.0), "site %s %s is walkable" % [region["name"], site[0]])
@@ -71,7 +71,15 @@ func _test_geometry_and_pcg() -> void:
 	for seed_value in [1, 77, 2024, 31337, 9]:
 		var generator := EncounterGenerator.new(geometry, seed_value)
 		# The clearing already has Fá, Mi, Dó, Sol x2, Ré, Lá (as the game passes it in).
+		# Clearing + the hand-made advanced challenges already exist (as the game passes them in).
 		var clearing_usage: Array[int] = [1, 1, 1, 1, 2, 1, 0]
+		var fixed_counts := {}
+		for area in ["vista", "som", "tato"]:
+			fixed_counts[area] = 0
+			for spec in SetPieces.for_area(area):
+				for blob in spec["blobs"]:
+					clearing_usage[int(blob["note"])] += 1
+					fixed_counts[area] += 1
 		for pc in range(7):
 			generator.note_usage[pc] = clearing_usage[pc]
 		var all_specs := []
@@ -82,7 +90,7 @@ func _test_geometry_and_pcg() -> void:
 			var blob_count := 0
 			for spec in specs:
 				blob_count += spec["blobs"].size()
-			check(blob_count >= 12, "seed %d %s: %d blobs" % [seed_value, area, blob_count])
+			check(blob_count + fixed_counts[area] >= 13, "seed %d %s: %d generated + %d hand-made" % [seed_value, area, blob_count, fixed_counts[area]])
 		var usage: Array[int] = clearing_usage.duplicate()
 		for spec in all_specs:
 			for blob in spec["blobs"]:
@@ -147,6 +155,14 @@ func _test_full_playthrough() -> void:
 	await _load_world()
 	var clearing: Array = world._area_blobs["clearing"]
 	check(clearing.size() == 7, "clearing has 7 blobs")
+	await test_guide_and_current()
+	for step in world.companion.steps:
+		for blob in clearing:
+			if blob.blob_id == step["blob"] or (step["id"] == "pair" and blob.blob_id == "clearing:pair_b"):
+				await solve_blob(blob, [])
+		await wait(0.5)
+		if step["id"] == "fa":
+			check(world.companion.current_step().get("id", "") == "mi", "after Fá, K guides to the next one (Mi), in order")
 	for blob in clearing:
 		await solve_blob(blob, [])
 	check(game.progress["clearing_done"], "clearing completed, gate opens")
@@ -159,9 +175,17 @@ func _test_full_playthrough() -> void:
 		await frames(4)
 		var blobs: Array = world._area_blobs[area]
 		check(blobs.size() >= 12, "%s generated %d blobs on entry" % [area, blobs.size()])
-		var specs: Array = game.progress["area_specs"][area]
+		var letter_check: String = game.AREA_VASSAL[area]
+		check(not world.vassals[letter_check].awake, "%s guardian sleeps on arrival" % area)
+		var needed: int = world.area_needed(area)
+		check(needed < blobs.size(), "%s guardian wakes at %d of %d (not all needed)" % [area, needed, blobs.size()])
+		var specs: Array = SetPieces.for_area(area) + game.progress["area_specs"][area]
+		var woke_at := -1
 		for spec in specs:
 			await solve_spec(spec, area)
+			if woke_at < 0 and world.vassals[letter_check].awake:
+				woke_at = world.area_freed(area)
+		check(woke_at >= needed and woke_at < blobs.size() + 1, "%s guardian woke after %d helped (needed %d)" % [area, woke_at, needed])
 		var freed := 0
 		for blob in blobs:
 			if blob.is_freed():
@@ -204,6 +228,40 @@ func _test_full_playthrough() -> void:
 	check(lines.size() >= 8, "K's closing speech has %d lines" % lines.size())
 	for line in lines:
 		print("     K: " + str(line[1]))
+
+
+func test_guide_and_current() -> void:
+	# K must not explain creatures the player has not seen yet.
+	await wait(4.0)
+	for later in ["explain_shy", "explain_pair", "explain_stim", "explain_mi"]:
+		check(not game.dialogue_seen(later), "K does not explain '%s' before you find it" % later)
+	check(world.companion.current_step().get("id", "") == "fa", "K first guides you to Fá")
+	# The current south of the glade: walking against it fails, a charged dash crosses it.
+	var current: CurrentZone = world.currents[0]
+	var before := current.global_position + Vector2(0, -current.size.y * 0.5 - 40.0)
+	world.player.global_position = before
+	world.player.velocity = Vector2.ZERO
+	await frames(3)
+	_press_direction(Vector2.DOWN)
+	await wait(2.5)
+	_release_direction()
+	check(world.player.global_position.y < current.global_position.y + current.size.y * 0.5, "walking cannot get through the current")
+	world.player.global_position = before
+	world.player.velocity = Vector2.ZERO
+	world.player.dash_cooldown_remaining = 0.0
+	await frames(3)
+	_press_direction(Vector2.DOWN)
+	Input.action_press("echo_dash")
+	await wait(1.15)
+	Input.action_release("echo_dash")
+	await wait(0.6)
+	_release_direction()
+	check(world.player.global_position.y > current.global_position.y + current.size.y * 0.5, "a charged dash crosses the current (y=%.0f)" % world.player.global_position.y)
+	# Going back with the flow is always possible (no softlock).
+	_press_direction(Vector2.UP)
+	await wait(1.5)
+	_release_direction()
+	check(world.player.global_position.y < current.global_position.y - current.size.y * 0.5, "the current carries you back out")
 
 
 func find_same_wave_spot(members: Array, max_range: float) -> Vector2:

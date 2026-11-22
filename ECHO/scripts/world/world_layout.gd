@@ -56,31 +56,39 @@ static func _clearing() -> Dictionary:
 		"flora": [Color(0.5, 0.85, 0.55), Color(0.85, 0.9, 0.5), Color(0.55, 0.8, 0.9)],
 		"rooms": [
 			[Vector2(-430, 1840), 230, 200, 0.18, 21],  # start nest
-			[Vector2(0, 1600), 520, 380, 0.12, 22],  # main glade
+			[Vector2(0, 1600), 560, 400, 0.12, 22],  # main glade (with the pond)
 			[Vector2(-660, 1420), 210, 190, 0.2, 23],  # west nook (shy)
-			[Vector2(600, 1720), 280, 240, 0.15, 24],  # east glade (pair around rock)
-			[Vector2(560, 1300), 170, 150, 0.2, 25],  # hidden alcove
-			[Vector2(150, 2000), 190, 150, 0.18, 26],  # south pocket
+			[Vector2(620, 1740), 280, 240, 0.15, 24],  # east glade (pair around rock)
+			[Vector2(580, 1320), 170, 150, 0.2, 25],  # hidden alcove
+			[Vector2(130, 2240), 190, 140, 0.18, 26],  # south pocket (behind the current)
 		],
 		"corridors": [
 			[[Vector2(0, 1320), Vector2(30, 1080), Vector2(-10, 850), Vector2(0, 600)], 190],
-			[[Vector2(320, 1480), Vector2(450, 1390), Vector2(560, 1300)], 120],
+			[[Vector2(650, 1530), Vector2(615, 1420), Vector2(580, 1320)], 120],
+			[[Vector2(100, 1940), Vector2(115, 2050), Vector2(130, 2150)], 170],
 		],
 		"rocks": [
-			[Vector2(600, 1720), 72, 201],
-			[Vector2(-200, 1500), 45, 202], [Vector2(240, 1680), 38, 203], [Vector2(-560, 1640), 40, 204],
+			[Vector2(620, 1740), 72, 201],
+			[Vector2(-200, 1500), 45, 202], [Vector2(-560, 1640), 40, 204],
 		],
 		"ridges": [
 			[[Vector2(-470, 1330), Vector2(-430, 1450), Vector2(-500, 1560)], 40],
 		],
+		# Mi waits on a lily pad in the pond: too far for a quick ping, so you learn to charge.
+		"pools": [[Vector2(220, 1460), 240, 180, 27]],
+		# A current in front of the south pocket: you learn to dash.
+		"currents": [[Vector2(115, 2045), Vector2(185, 130), Vector2.UP]],
 		"sites": [],
 		"markers": {
 			"start": Vector2(-470, 1880),
-			"fa": Vector2(-180, 1760), "mi": Vector2(80, 1340),
+			"fa": Vector2(-180, 1760), "mi": Vector2(220, 1460),
 			"shy": Vector2(-700, 1380),
-			"pair_a": Vector2(440, 1720), "pair_b": Vector2(760, 1720),
-			"stim": Vector2(170, 2030), "hidden": Vector2(600, 1270),
+			"pair_a": Vector2(470, 1740), "pair_b": Vector2(770, 1740),
+			"stim": Vector2(140, 2260), "hidden": Vector2(590, 1300),
 			"k_start": Vector2(-330, 1800), "gate": Vector2(0, 960),
+			# Where K waits while guiding you to each creature.
+			"k_fa": Vector2(-300, 1690), "k_mi": Vector2(-70, 1700), "k_shy": Vector2(-410, 1620),
+			"k_pair": Vector2(370, 1660), "k_stim": Vector2(20, 1900), "k_hidden": Vector2(700, 1560),
 		},
 	}
 
@@ -118,7 +126,7 @@ static func _vista() -> Dictionary:
 		"rocks": [
 			[Vector2(-2820, 10), 70, 301], [Vector2(-2600, -220), 45, 302], [Vector2(-3060, 260), 50, 303],
 			[Vector2(-2120, -620), 55, 304], [Vector2(-2240, 700), 48, 305], [Vector2(-1760, -60), 40, 306],
-			[Vector2(-2980, -880), 50, 307], [Vector2(-2900, 900), 55, 308],
+			[Vector2(-2980, -880), 50, 307],
 			[Vector2(-3760, -150), 55, 309], [Vector2(-3640, 160), 50, 310], [Vector2(-3900, 140), 48, 311],
 		],
 		"ridges": [
@@ -126,10 +134,10 @@ static func _vista() -> Dictionary:
 			[[Vector2(-3040, 160), Vector2(-2840, 250), Vector2(-2640, 200)], 48],
 			[[Vector2(-2300, 520), Vector2(-2160, 470), Vector2(-2020, 540)], 40],
 		],
+		"pools": [[Vector2(-2980, 860), 190, 140, 312]],  # dark lake (advanced challenge)
 		"sites": [
 			[Vector2(-1850, 40), 190], [Vector2(-2050, -560), 210], [Vector2(-2120, 700), 210],
-			[Vector2(-2620, -20), 160], [Vector2(-3020, 30), 160], [Vector2(-2900, -800), 190],
-			[Vector2(-2980, 800), 200], [Vector2(-2380, -980), 80], [Vector2(-1680, 860), 80],
+			[Vector2(-2620, -20), 160], [Vector2(-3020, 30), 160], [Vector2(-1680, 860), 80],
 			[Vector2(-3380, 20), 90], [Vector2(-2780, 370), 100], [Vector2(-2230, -740), 110],
 		],
 		"markers": {
@@ -148,7 +156,7 @@ static func _som() -> Dictionary:
 		basin_stones.append([Vector2(0, -2450) + Vector2(cos(angle), sin(angle)) * 230.0, 42, 420 + index])
 	var rocks: Array = [
 		[Vector2(-300, -1640), 40, 401], [Vector2(-90, -1700), 38, 402], [Vector2(130, -1630), 40, 403],
-		[Vector2(340, -1690), 38, 404], [Vector2(-640, -2960), 46, 405], [Vector2(690, -2970), 46, 406],
+		[Vector2(340, -1690), 38, 404], [Vector2(-640, -2960), 46, 405], [Vector2(820, -2120), 45, 409],
 		[Vector2(-1330, -1980), 32, 407], [Vector2(1330, -1980), 32, 408],
 	]
 	rocks.append_array(basin_stones)
@@ -184,12 +192,13 @@ static func _som() -> Dictionary:
 		"ridges": [
 			[[Vector2(-1080, -2270), Vector2(-920, -2400), Vector2(-720, -2420)], 44],
 			[[Vector2(1080, -2270), Vector2(920, -2400), Vector2(720, -2420)], 44],
+			[[Vector2(-890, -2190), Vector2(-830, -2140), Vector2(-770, -2090)], 40],
 		],
+		"pools": [[Vector2(560, -3060), 180, 140, 413]],  # singing island (advanced challenge)
 		"sites": [
-			[Vector2(-420, -1600), 170], [Vector2(420, -1600), 170], [Vector2(-900, -2000), 150],
-			[Vector2(-720, -2240), 140], [Vector2(900, -2000), 150], [Vector2(720, -2240), 140],
-			[Vector2(0, -2450), 140], [Vector2(-480, -3100), 170], [Vector2(520, -3110), 170],
-			[Vector2(-1240, -1880), 90], [Vector2(1240, -1880), 90], [Vector2(0, -1760), 110],
+			[Vector2(-420, -1600), 170], [Vector2(420, -1600), 170], [Vector2(0, -2450), 140],
+			[Vector2(-480, -3100), 170], [Vector2(-1240, -1880), 90], [Vector2(1240, -1880), 90],
+			[Vector2(0, -1760), 110],
 		],
 		"markers": {
 			"entry": Vector2(0, -1350), "vassal": Vector2(0, -3540), "vassal_gate": Vector2(0, -3200),
@@ -213,9 +222,10 @@ static func _tato() -> Dictionary:
 	var sites: Array = [
 		[Vector2(1850, 0), 180], [Vector2(2150, -600), 150], [Vector2(2390, -730), 140],
 		[Vector2(2150, 600), 150], [Vector2(2390, 730), 140], [Vector2(2700, -120), 190],
-		[Vector2(3020, 140), 190], [Vector2(3160, -800), 170], [Vector2(3160, 800), 170],
-		[Vector2(2000, -1060), 80], [Vector2(2000, 1060), 80], [Vector2(2690, 250), 110],
+		[Vector2(3020, 140), 190], [Vector2(2000, 1060), 80], [Vector2(2690, 250), 110],
 	]
+	# Places reserved for the hand-designed advanced challenges (no trunks there).
+	var keep_clear: Array = [[Vector2(3160, -800), 190], [Vector2(3160, 820), 190], [Vector2(2000, -1060), 110]]
 	# Tree trunks: small rocks scattered through the forest rooms, kept away from sites.
 	var rocks: Array = []
 	var rng := RandomNumberGenerator.new()
@@ -230,7 +240,7 @@ static func _tato() -> Dictionary:
 			var distance := sqrt(rng.randf()) * 0.85
 			var at: Vector2 = room[0] + Vector2(cos(angle) * room[1], sin(angle) * room[2]) * distance
 			var clear := true
-			for site in sites:
+			for site in sites + keep_clear:
 				if at.distance_to(site[0]) < site[1] + 60.0:
 					clear = false
 			for rock in rocks:
@@ -262,6 +272,12 @@ static func _tato() -> Dictionary:
 		"ridges": [
 			[[Vector2(2620, -260), Vector2(2760, -330), Vector2(2900, -300)], 40],
 			[[Vector2(2840, 300), Vector2(2980, 330), Vector2(3100, 260)], 40],
+		],
+		"pools": [[Vector2(3160, 820), 150, 110, 514]],  # gentle lake (advanced challenge)
+		# Currents guarding the two alcoves: dash to get in, the flow carries you out.
+		"currents": [
+			[Vector2(2075, -950), Vector2(200, 110), Vector2(0.56, 0.83)],
+			[Vector2(2075, 950), Vector2(200, 110), Vector2(0.56, -0.83)],
 		],
 		"sites": sites,
 		"markers": {

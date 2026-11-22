@@ -31,6 +31,8 @@ var _final_trio: EchoBlobGroup
 var _vision_target := 260.0
 var _opacity_target := 0.7
 var _pause_menu: CanvasLayer
+var companion: KCompanion
+var currents: Array[CurrentZone] = []
 
 
 func _ready() -> void:
@@ -66,7 +68,12 @@ func _ready() -> void:
 	_pause_menu = PAUSE_SCRIPT.new()
 	add_child(_pause_menu)
 
+	_spawn_currents()
 	_spawn_clearing()
+	for area in _game.AREAS:
+		for spec in SetPieces.for_area(area):
+			for blob in EncounterSpawner.spawn(spec, _creatures, geometry):
+				_register_blob(blob, area)
 	for area in _game.AREAS:
 		var saved: Array = _game.progress["area_specs"].get(area, [])
 		if not saved.is_empty():
@@ -75,6 +82,8 @@ func _ready() -> void:
 	_spawn_k()
 	_spawn_gates()
 	_update_grading(false)
+	companion = KCompanion.new(self)
+	add_child(companion)
 	_game.chord_unlocked.connect(_on_chord_unlocked)
 	emitter.ping_tone_changed.connect(func(_i: int, _n: String, _f: float) -> void: _apply_tone())
 	emitter.ping_emitted.connect(_on_player_ping)
@@ -146,6 +155,10 @@ func _spawn_player() -> void:
 	camera.make_current()
 	emitter = player.get_node("PingEmitter") as PingEmitter
 	emitter.tone_count = 7
+	player.collision_mask = 2 | 1 | WorldGeometry.WATER_LAYER
+	# A longer dash than the lab default: currents are crossed with it.
+	player.max_dash_speed = 1000.0
+	player.max_dash_duration = 0.32
 	EchoBlob.player = player
 	EchoBlob.always_show_note_names = _game.settings["note_names_always"]
 
@@ -154,6 +167,53 @@ func spawn_blob(data: Dictionary, area: String) -> EchoBlob:
 	var blob := EncounterSpawner.make_blob(data, area)
 	_creatures.add_child(blob)
 	return blob
+
+
+func _spawn_currents() -> void:
+	for region in geometry.regions:
+		for data in region.get("currents", []):
+			var current := CurrentZone.new()
+			current.position = data[0]
+			current.size = data[1]
+			current.direction = (data[2] as Vector2).normalized()
+			add_child(current)
+			currents.append(current)
+
+
+func _physics_process(delta: float) -> void:
+	for current in currents:
+		current.push(player, delta)
+
+
+func area_freed(area: String) -> int:
+	var count := 0
+	for blob in _area_blobs.get(area, []):
+		if blob.is_freed():
+			count += 1
+	return count
+
+
+func area_total(area: String) -> int:
+	return _area_blobs.get(area, []).size()
+
+
+## Creatures that must be helped before the guardian wakes (not all of them).
+func area_needed(area: String) -> int:
+	return ceili(area_total(area) * _game.AREA_WAKE_RATIO)
+
+
+func area_ready(area: String) -> bool:
+	if _game.progress["area_specs"].get(area, []).is_empty():
+		return false
+	return area_freed(area) >= area_needed(area)
+
+
+func region_title(region: String) -> String:
+	return _region_title(region)
+
+
+func say_once(key: String, lines: Array, speaker: String = "K") -> void:
+	_say_once(key, lines, speaker)
 
 
 func _spawn_clearing() -> void:
@@ -238,7 +298,7 @@ func _spawn_vassals() -> void:
 			body.awake = true
 			body.completed = true
 			body.glow = 1.0
-		elif _area_complete(area):
+		elif area_ready(area):
 			body.call_deferred("wake")
 
 
@@ -284,9 +344,9 @@ func _process(delta: float) -> void:
 	if region != "" and region != current_region:
 		_enter_region(region)
 	_update_theme(delta)
-	_update_tutorial_triggers()
 	_update_final(delta)
 	_update_status()
+	_update_k_pointer()
 
 
 func _enter_region(region: String) -> void:
@@ -400,6 +460,8 @@ func _update_status() -> void:
 			if blob.is_freed():
 				freed += 1
 		lines.append("Criaturas ajudadas: %d / %d" % [freed, _area_blobs[current_region].size()])
+		if current_region in _game.AREAS and not vassals[_game.AREA_VASSAL[current_region]].awake:
+			lines.append("O guardião acorda aos %d" % area_needed(current_region))
 	var cmy: Array[String] = []
 	for letter in ["C", "M", "Y", "K"]:
 		cmy.append(letter if _game.is_vassal_freed(letter) else "·")
@@ -445,10 +507,8 @@ func _on_chord_unlocked(pc: int) -> void:
 	hud.show_message("Novo acorde: %s (%s · %s · %s)\nEscolhe %s e carrega %s." % [
 		EchoNotes.chord_name_for(pc), EchoNotes.name_for(pc), EchoNotes.name_for(extras[0]),
 		EchoNotes.name_for(extras[1]), EchoNotes.name_for(pc), _key("echo_chord")], 6.0)
-	_say_once("first_chord", [
-		"Ajudaste cinco vozes da mesma nota. Agora essa nota pode soar como um acorde, três de uma vez.",
-		"Não precisas deles para ninguém... mas tornam muita coisa mais leve.",
-	])
+	if _final_stage < 0:
+		companion.on_chord_unlocked(pc)
 	hud.set_tone(emitter.ping_tone_index, emitter.chord_tone_indices)
 
 
@@ -470,17 +530,17 @@ func _on_player_ping(_origin: Vector2, is_echo: bool, _charge: float, _tone: int
 func _on_blob_freed(blob: EchoBlob) -> void:
 	_refresh_area_ease()
 	var area := blob.area
+	companion.on_blob_freed(blob)
 	if area == "clearing":
-		if blob.blob_id == "clearing:fa":
-			_say_once("fa_freed", ["Ela lembrou-se de quem é. É assim que ajudamos: compreendendo o que cada uma precisa."])
 		if _area_complete("clearing") and not _game.progress["clearing_done"]:
 			_finish_clearing()
-	elif area in _game.AREAS and _area_complete(area):
+	elif area in _game.AREAS and area_ready(area):
 		var letter: String = _game.AREA_VASSAL[area]
 		var vassal: VassalBody = vassals[letter]
 		if not vassal.awake:
 			vassal.wake()
-			hud.show_message("Algo despertou no fundo de %s." % _region_title(area), 4.0)
+			hud.show_message("Algo despertou em %s." % _region_title(area), 4.0)
+			companion.on_vassal_awake(letter, area)
 
 
 func _finish_clearing() -> void:
@@ -500,6 +560,7 @@ func on_vassal_completed(letter: String) -> void:
 	_update_grading(true)
 	var vassal: VassalBody = vassals[letter]
 	EchoMarker.spawn(vassal.global_position, VASSAL_COLORS[letter], 90.0, get_tree(), true)
+	companion.on_vassal_completed(letter)
 	var color_name: String = {"C": "o ciano", "M": "o magenta", "Y": "o amarelo"}[letter]
 	hud.show_message("%s voltou ao mundo." % color_name.capitalize(), 5.0)
 	match letter:
@@ -542,42 +603,17 @@ func _say_once(key: String, lines: Array, speaker: String = "K") -> void:
 	say(lines, speaker, key)
 
 
-func _blob_by_id(blob_id: String) -> EchoBlob:
-	for blob in _area_blobs["clearing"]:
-		if blob.blob_id == blob_id:
-			return blob
-	return null
-
-
-func _update_tutorial_triggers() -> void:
+func _update_k_pointer() -> void:
 	if _game.progress["clearing_done"] or current_region != "clearing":
+		hud.set_pointer(Vector2.INF)
 		return
-	var position := player.global_position
-	var triggers := [
-		["near_fa", "clearing:fa", 330.0, [
-			"Vês aquela? Está verde... e o verde é Fá.",
-			"Se lhe chamares com a nota errada, ela responde com a sua. Ouve-a, e depois responde-lhe.",
-		]],
-		["near_shy", "clearing:shy", 340.0, [
-			"Shh... esta é tímida. Acorda-a com a nota dela...",
-			"...e depois deixa-a em paz. Qualquer som, mesmo outra nota, assusta-a outra vez.",
-		]],
-		["near_pair", "clearing:pair_a", 420.0, [
-			"Estas duas estão separadas pela pedra. Precisam de ouvir o mesmo chamamento ao mesmo tempo.",
-			"Uma só onda que chegue às duas. Procura o sítio certo.",
-		]],
-		["near_stim", "clearing:stim", 320.0, [
-			"Esta está ansiosa por companhia. Repara no que ela te mostra.",
-		]],
-	]
-	for trigger in triggers:
-		if _game.dialogue_seen(trigger[0]):
-			continue
-		var blob := _blob_by_id(trigger[1])
-		if blob != null and not blob.is_freed() and blob.global_position.distance_to(position) < trigger[2]:
-			_say_once(trigger[0], trigger[3])
-			k_body.glide_to(blob.global_position.lerp(position, 0.5) + Vector2(0, -70), 1.4)
-			return
+	var canvas := get_viewport().get_canvas_transform()
+	var screen := canvas * k_body.global_position
+	var size := get_viewport().get_visible_rect().size
+	if Rect2(Vector2(40, 40), size - Vector2(80, 80)).has_point(screen):
+		hud.set_pointer(Vector2.INF)
+	else:
+		hud.set_pointer(screen)
 
 
 func _on_dialogue_finished(_sequence_id: String) -> void:
@@ -598,6 +634,13 @@ func _start_final_stage(stage: int) -> void:
 	var markers: Dictionary = geometry.region_data("hub")["markers"]
 	match stage:
 		1:
+			var missing: Array[int] = _game.grant_all_chords()
+			if not missing.is_empty():
+				var names: Array[String] = []
+				for pc in missing:
+					names.append(EchoNotes.chord_name_for(pc))
+				say([["K", "Antes de começares... leva também as vozes que ainda não aprendeste: %s." % ", ".join(names)]])
+				_apply_tone()
 			say([
 				["K", "Então chegaste."],
 				["K", "Antes de me veres, tens de me encontrar. Parti-me em quatro... algures nesta escuridão."],

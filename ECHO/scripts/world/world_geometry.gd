@@ -8,6 +8,9 @@ extends Node2D
 
 const GRID_CELL := 200.0
 const ROCK_COLOR := Color(0.075, 0.085, 0.10)
+const WATER_COLOR := Color(0.16, 0.30, 0.42)
+## Physics layer 4 (value 8): water blocks walking, but not Ping (layer 2) or vision.
+const WATER_LAYER := 8
 
 var regions: Array = []  # Array of Dictionaries (see WorldLayout), plus "polygons"
 var outer_loops: Array[PackedVector2Array] = []
@@ -17,11 +20,15 @@ var _grid: Dictionary = {}
 var _rock_polygons: Array[PackedVector2Array] = []
 var _body: StaticBody2D
 var _outer_orientation := true
+var pool_polygons: Array[PackedVector2Array] = []
+var _water_body: StaticBody2D
+var _time := 0.0
 
 
 func build(layout: Array) -> void:
 	z_index = -10
 	regions.clear()
+	pool_polygons.clear()
 	var floor_shapes: Array[PackedVector2Array] = []
 	var obstacle_shapes: Array[PackedVector2Array] = []
 	for region_data in layout:
@@ -36,6 +43,8 @@ func build(layout: Array) -> void:
 		floor_shapes.append_array(polygons)
 		for rock in region.get("rocks", []):
 			obstacle_shapes.append(noisy_ellipse(rock[0], rock[1], rock[1], 0.18, rock[2], 16))
+		for pool in region.get("pools", []):
+			pool_polygons.append(noisy_ellipse(pool[0], pool[1], pool[2], 0.12, pool[3], 32))
 		for ridge in region.get("ridges", []):
 			for polygon in Geometry2D.offset_polyline(smooth_polyline(ridge[0]), ridge[1] * 0.5, Geometry2D.JOIN_ROUND, Geometry2D.END_ROUND):
 				obstacle_shapes.append(polygon)
@@ -56,7 +65,33 @@ func build(layout: Array) -> void:
 	_rock_polygons.append_array(hole_loops)
 	_rebuild_segments()
 	_build_collision()
-	queue_redraw()
+	_build_water()
+	_rebuild_drawing()
+
+
+func _build_water() -> void:
+	if _water_body != null:
+		_water_body.queue_free()
+	_water_body = StaticBody2D.new()
+	_water_body.name = "Water"
+	_water_body.collision_layer = WATER_LAYER
+	_water_body.collision_mask = 0
+	add_child(_water_body)
+	for pool in pool_polygons:
+		var shape := CollisionPolygon2D.new()
+		shape.polygon = pool
+		_water_body.add_child(shape)
+
+
+func is_in_water(point: Vector2, margin: float = 0.0) -> bool:
+	for pool in pool_polygons:
+		if Geometry2D.is_point_in_polygon(point, pool):
+			return true
+		if margin > 0.0:
+			for index in range(pool.size()):
+				if point.distance_to(Geometry2D.get_closest_point_to_segment(point, pool[index], pool[(index + 1) % pool.size()])) < margin:
+					return true
+	return false
 
 
 # --- Polygon helpers ------------------------------------------------------------------
@@ -282,7 +317,7 @@ func add_dynamic_obstacle(polygon: PackedVector2Array) -> void:
 	var shape := CollisionPolygon2D.new()
 	shape.polygon = polygon
 	_body.add_child(shape)
-	queue_redraw()
+	_add_rock_chunks(polygon)
 
 
 # --- Queries ----------------------------------------------------------------------------
@@ -321,7 +356,7 @@ func distance_to_wall(point: Vector2, search: float = 300.0) -> float:
 
 
 func is_walkable(point: Vector2, margin: float = 30.0) -> bool:
-	return is_inside_floor(point) and distance_to_wall(point, margin + 1.0) > margin
+	return is_inside_floor(point) and distance_to_wall(point, margin + 1.0) > margin and not is_in_water(point, margin)
 
 
 func has_line_of_sight(a: Vector2, b: Vector2, extra_polygons: Array = []) -> bool:
@@ -353,30 +388,92 @@ func region_data(name: String) -> Dictionary:
 	return {}
 
 
-# --- Drawing ----------------------------------------------------------------------------
+# --- Drawing ---------------------------------------------------------------------------
+# Drawn as many small canvas items (one per room, lake, rock and outline piece) instead of
+# one giant one, so Godot can skip everything that is off screen.
 
-func _draw() -> void:
+class Chunk extends Node2D:
+	var painter: Callable
+
+	func _draw() -> void:
+		painter.call(self)
+
+
+var _chunks: Node2D
+
+
+func _add_chunk(painter: Callable, above_grading: bool = false) -> Chunk:
+	var chunk := Chunk.new()
+	chunk.painter = painter
+	_chunks.add_child(chunk)
+	if above_grading:
+		# Gameplay information (water) keeps its colour: drawn above the CMYK pass (z -2),
+		# below the creatures (z 0).
+		chunk.z_as_relative = false
+		chunk.z_index = -1
+	return chunk
+
+
+func _rebuild_drawing() -> void:
+	if _chunks != null:
+		_chunks.queue_free()
+	_chunks = Node2D.new()
+	_chunks.name = "Drawing"
+	add_child(_chunks)
 	for region in regions:
 		var floor_color: Color = region.get("floor_color", Color(0.3, 0.3, 0.3))
-		for polygon in region["polygons"]:
-			draw_colored_polygon(polygon, floor_color)
 		var rng := RandomNumberGenerator.new()
 		rng.seed = hash(region["name"])
-		# Organic speckles for texture (inside the region's shapes only).
 		for polygon in region["polygons"]:
+			var speckles: Array = []
 			var bounds := Rect2(polygon[0], Vector2.ZERO)
 			for point in polygon:
 				bounds = bounds.expand(point)
-			var count := int(bounds.get_area() / 9000.0)
-			for index in range(count):
+			for index in range(int(bounds.get_area() / 15000.0)):
 				var at := Vector2(rng.randf_range(bounds.position.x, bounds.end.x), rng.randf_range(bounds.position.y, bounds.end.y))
 				if Geometry2D.is_point_in_polygon(at, polygon):
 					var shade := floor_color.darkened(rng.randf_range(0.08, 0.22)) if rng.randf() < 0.7 else floor_color.lightened(rng.randf_range(0.05, 0.12))
-					draw_circle(at, rng.randf_range(3.0, 11.0), shade)
+					speckles.append([at, rng.randf_range(3.0, 11.0), shade])
+			_add_chunk(func(canvas: CanvasItem) -> void:
+				canvas.draw_colored_polygon(polygon, floor_color)
+				for speckle in speckles:
+					canvas.draw_circle(speckle[0], speckle[1], speckle[2]))
+	for pool in pool_polygons:
+		_add_chunk(_paint_pool.bind(pool), true)
 	for polygon in _rock_polygons:
-		if polygon.size() >= 3:
-			draw_colored_polygon(polygon, ROCK_COLOR)
-	for loop in _all_loops():
-		var closed := loop.duplicate()
-		closed.append(loop[0])
-		draw_polyline(closed, Color(0.55, 0.6, 0.65, 0.35), 3.0, true)
+		_add_rock_chunks(polygon)
+	for loop in outer_loops:
+		_add_rim_chunks(loop)
+
+
+func _add_rock_chunks(polygon: PackedVector2Array) -> void:
+	if polygon.size() >= 3:
+		_add_chunk(func(canvas: CanvasItem) -> void: canvas.draw_colored_polygon(polygon, ROCK_COLOR))
+	_add_rim_chunks(polygon)
+
+
+func _add_rim_chunks(loop: PackedVector2Array) -> void:
+	var piece := PackedVector2Array()
+	for index in range(loop.size() + 1):
+		piece.append(loop[index % loop.size()])
+		if piece.size() >= 40 or index == loop.size():
+			var segment := piece.duplicate()
+			_add_chunk(func(canvas: CanvasItem) -> void: canvas.draw_polyline(segment, Color(0.55, 0.6, 0.65, 0.35), 3.0, true))
+			piece = PackedVector2Array([loop[index % loop.size()]])
+
+
+func _paint_pool(canvas: CanvasItem, pool: PackedVector2Array) -> void:
+	canvas.draw_colored_polygon(pool, WATER_COLOR)
+	var shore := pool.duplicate()
+	shore.append(pool[0])
+	canvas.draw_polyline(shore, WATER_COLOR.lightened(0.35), 3.0, true)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(pool[0].x * 7.0 + pool[0].y)
+	var center := Vector2.ZERO
+	for point in pool:
+		center += point
+	center /= pool.size()
+	for index in range(10):
+		var at := center + Vector2(rng.randf_range(-0.6, 0.6), rng.randf_range(-0.6, 0.6)) * (pool[0] - center).length()
+		if Geometry2D.is_point_in_polygon(at, pool):
+			canvas.draw_arc(at, rng.randf_range(10.0, 26.0), PI * 1.15, PI * 1.85, 10, Color(1, 1, 1, 0.25), 2.0, true)

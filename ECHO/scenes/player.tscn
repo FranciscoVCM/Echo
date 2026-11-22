@@ -1,0 +1,30 @@
+[gd_scene format=3 uid="uid://c3rfhp74tt5d0"]
+
+[ext_resource type="Script" uid="uid://575ehv552ult" path="res://scripts/player_controller.gd" id="1_script"]
+[ext_resource type="Resource" uid="uid://cvo7eq247ph7h" path="res://resources/default_top_down_movement.tres" id="2_movement"]
+[ext_resource type="Script" uid="uid://i57oqe6fa6m2" path="res://scripts/blob_visual.gd" id="3_blob_visual"]
+[ext_resource type="Script" uid="uid://b26goik2b4mfg" path="res://scripts/ping_emitter.gd" id="4_ping_emitter"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_player"]
+radius = 19.0
+
+[node name="Player" type="CharacterBody2D" unique_id=725533272 groups=["ping_blobs"]]
+script = ExtResource("1_script")
+movement = ExtResource("2_movement")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1136372936]
+shape = SubResource("CircleShape2D_player")
+
+[node name="BlobVisual" type="Node2D" parent="." unique_id=1997540017]
+script = ExtResource("3_blob_visual")
+body_radius = 30.0
+body_color = Color(1, 1, 1, 1)
+outline_color = Color(0.5205679, 0.5047403, 0.48365176, 1)
+max_stretch = 0.4
+wall_lateral_expansion = 0.45
+
+[node name="PingEmitter" type="Node2D" parent="." unique_id=1056858571]
+script = ExtResource("4_ping_emitter")
+listen_for_input = true
+
+[node name="TonePreview" type="AudioStreamPlayer" parent="PingEmitter"]

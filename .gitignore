@@ -1,0 +1,9 @@
+# Godot cache (regenerated locally)
+ECHO/.godot/
+# Large course/reference PDFs kept locally only (see docs/REFERENCE_PRIORITY_AND_INDEX.md)
+reference/
+# Test captures
+captures/
+*.tmp
+.DS_Store
+Thumbs.db

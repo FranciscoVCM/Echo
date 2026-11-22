@@ -1,0 +1,92 @@
+[gd_scene format=3 uid="uid://djf6t2fbi36su"]
+
+[ext_resource type="PackedScene" uid="uid://c3rfhp74tt5d0" path="res://scenes/player.tscn" id="1_player"]
+[ext_resource type="PackedScene" path="res://scenes/ping_dummy.tscn" id="2_ping_dummy"]
+[ext_resource type="Script" uid="uid://dd8bdql1vnyhu" path="res://scripts/field_of_view.gd" id="5_field_of_view"]
+[ext_resource type="Shader" uid="uid://bn3r221anykyk" path="res://resources/field_of_view.gdshader" id="6_field_of_view_shader"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_center_block"]
+size = Vector2(157, 108)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal_wall"]
+size = Vector2(940, 20)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_vertical_wall"]
+size = Vector2(20, 560)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_field_of_view"]
+shader = ExtResource("6_field_of_view_shader")
+shader_parameter/visibility_points = PackedVector2Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+shader_parameter/point_count = 0
+shader_parameter/viewport_size = Vector2(1280, 720)
+shader_parameter/player_uv = Vector2(0.5, 0.5)
+shader_parameter/vision_radius_pixels = 250.0
+shader_parameter/fog_color = Color(0.14, 0.19, 0.23, 1)
+shader_parameter/fog_opacity = 0.48
+shader_parameter/edge_softness = 80.0
+shader_parameter/wall_edge_softness = 8.0
+shader_parameter/blur_strength = 0.28
+
+[node name="Main" type="Node2D" unique_id=2052780138]
+
+[node name="Room" type="Polygon2D" parent="." unique_id=276902616]
+position = Vector2(0, 1)
+color = Color(0.46479982, 0.56279635, 0.61203057, 1)
+polygon = PackedVector2Array(-450, -260, 450, -260, 450, 260, -450, 260)
+
+[node name="CenterBlock" type="StaticBody2D" parent="." unique_id=1940168727 groups=["vision_occluders"]]
+collision_layer = 2
+
+[node name="Visual" type="Polygon2D" parent="CenterBlock" unique_id=1230173922]
+position = Vector2(35, 22.5)
+scale = Vector2(1.7954545, 1.703125)
+color = Color(0.20905155, 0.25889033, 0.27039108, 1)
+polygon = PackedVector2Array(-44, -32, 44, -32, 44, 32, -44, 32)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CenterBlock" unique_id=1479566378]
+position = Vector2(34.5, 22)
+shape = SubResource("RectangleShape2D_center_block")
+debug_color = Color(0.026717393, 0.11952514, 0.33076236, 0.41960785)
+
+[node name="RoomBorder" type="StaticBody2D" parent="." unique_id=1865659924 groups=["vision_occluders"]]
+collision_layer = 2
+
+[node name="TopWall" type="CollisionShape2D" parent="RoomBorder" unique_id=1204945644]
+position = Vector2(0, -270)
+shape = SubResource("RectangleShape2D_horizontal_wall")
+
+[node name="BottomWall" type="CollisionShape2D" parent="RoomBorder" unique_id=1637667175]
+position = Vector2(0, 270)
+shape = SubResource("RectangleShape2D_horizontal_wall")
+
+[node name="LeftWall" type="CollisionShape2D" parent="RoomBorder" unique_id=1845604972]
+position = Vector2(-460, 0)
+shape = SubResource("RectangleShape2D_vertical_wall")
+
+[node name="RightWall" type="CollisionShape2D" parent="RoomBorder" unique_id=23871958]
+position = Vector2(460, 0)
+shape = SubResource("RectangleShape2D_vertical_wall")
+
+[node name="Player" parent="." unique_id=1135880415 instance=ExtResource("1_player")]
+position = Vector2(0, 170)
+collision_mask = 3
+
+[node name="Camera2D" type="Camera2D" parent="Player" unique_id=1563054849]
+zoom = Vector2(1.3, 1.3)
+
+[node name="PingDummy" parent="." unique_id=612084050 instance=ExtResource("2_ping_dummy")]
+position = Vector2(-365, -75)
+
+[node name="FieldOfView" type="CanvasLayer" parent="." unique_id=2029813154]
+script = ExtResource("5_field_of_view")
+target_path = NodePath("../Player")
+
+[node name="ColorRect" type="ColorRect" parent="FieldOfView" unique_id=690781413]
+material = SubResource("ShaderMaterial_field_of_view")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+

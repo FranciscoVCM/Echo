@@ -1,0 +1,6 @@
+[gd_resource type="Resource" script_class="TopDownMovement" format=3 uid="uid://cvo7eq247ph7h"]
+
+[ext_resource type="Script" uid="uid://di37b2slxx3sk" path="res://scripts/top_down_movement.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")

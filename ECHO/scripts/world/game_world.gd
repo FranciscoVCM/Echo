@@ -821,6 +821,8 @@ func _start_final_stage(stage: int) -> void:
 				_final_fragments.append(blob)
 		2:
 			for blob in _final_fragments:
+				# Flying back into K: no longer part of the world (can't be pinged or leave echoes).
+				blob.remove_from_group("ping_blobs")
 				var tween := blob.create_tween()
 				tween.tween_property(blob, "global_position", Vector2.ZERO, 1.5).set_trans(Tween.TRANS_SINE)
 				tween.tween_callback(blob.set_dormant.bind(true))

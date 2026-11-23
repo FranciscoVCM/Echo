@@ -277,6 +277,9 @@ func _test_full_playthrough() -> void:
 		await solve_blob(blob, [])
 	await wait(2.0)
 	check(world._final_stage == 2, "four fragments found -> K's song")
+	var markers_before := get_tree().get_nodes_in_group("echo_markers").size()
+	for blob in world._final_fragments:
+		check(not blob.is_in_group("ping_blobs"), "returning fragment can no longer be pinged")
 	await solve_melody_body(world.k_body)
 	await wait(1.0)
 	check(world._final_stage == 3, "song answered -> trio around pillars")

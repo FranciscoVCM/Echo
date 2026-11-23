@@ -85,6 +85,7 @@ func _physics_process(delta: float) -> void:
 func _on_spark_freed(blob: EchoBlob) -> void:
 	sparks_returned += 1
 	glow = 0.12 + 0.15 * sparks_returned  # still not free: half lit at most
+	blob.remove_from_group("ping_blobs")  # flying into Y: can't be pinged on the way
 	var tween := blob.create_tween()
 	tween.tween_property(blob, "global_position", global_position, 1.2).set_trans(Tween.TRANS_SINE)
 	# Merges into Y: removed, so it can't reappear on top of it.

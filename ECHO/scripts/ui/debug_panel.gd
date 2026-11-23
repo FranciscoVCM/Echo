@@ -46,10 +46,23 @@ func _ready() -> void:
 	column.add_child(free)
 	for letter in ["Y", "C", "M"]:
 		_button(free, "Libertar " + letter, Callable(world, "debug_free_vassal").bind(letter))
-	_button(column, "Ajudar 80% da área atual", Callable(world, "debug_free_current_area"))
+	_button(column, "Ajudar o necessário na área atual", Callable(world, "debug_free_current_area"))
+	_section(column, "Áreas (vassalo libertado)  ·  normal = o mínimo, completa = todas as blobs")
+	var areas := GridContainer.new()
+	areas.columns = 3
+	column.add_child(areas)
+	for entry in [["Grutas", "vista"], ["Vale", "som"], ["Bosque", "tato"]]:
+		_button(areas, entry[0] + " normal", Callable(world, "debug_clear_area").bind(entry[1], false))
+	for entry in [["Grutas", "vista"], ["Vale", "som"], ["Bosque", "tato"]]:
+		_button(areas, entry[0] + " completa", Callable(world, "debug_clear_area").bind(entry[1], true))
 	_button(column, "Terminar a Clareira", Callable(world, "debug_finish_clearing"))
 	_button(column, "Dar todos os acordes", Callable(world, "debug_grant_chords"))
 	_button(column, "Ir para o desafio final (K)", Callable(world, "debug_go_final"))
+	_section(column, "Final: explosão de cor por nível (blobs ajudadas)")
+	var endings := HBoxContainer.new()
+	column.add_child(endings)
+	for entry in [["1 (<50%)", 1], ["2 (50%+)", 2], ["3 (75%+)", 3], ["4 (todas)", 4]]:
+		_button(endings, entry[0], Callable(world, "debug_ending").bind(entry[1]))
 	_root.reset_size()
 
 

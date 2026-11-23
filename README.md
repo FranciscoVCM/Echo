@@ -21,7 +21,8 @@ The *TESTE* buttons on the title screen and the **F8** debug panel are testing t
   - **Vale dos Ecos** (west, hearing) — colourless blobs you recognise by ear.
   - **Bosque do Toque** (north, touch) — delicate, nervous, cold blobs; slowness and closeness.
   - **Grutas da Vista** (east, sight) — near darkness; your ping is your eyes.
-- Each area has a **vassal** (C, M, Y) with a hand-made themed challenge; freeing it returns that ink to the world (CMYK). Then the last challenge, and the ending.
+- Each area has a **vassal** (C, M, Y) with a hand-made themed challenge; it wakes after you help a few of the area's blobs, and freeing it returns that ink to the world (CMYK). Help every blob of an area and its colour gets even stronger.
+- Then K's last challenge and the ending: the more blobs you helped along the way, the bigger the colour explosion. You can keep exploring afterwards.
 - Blob encounters in the three areas are **procedurally generated** on first visit from designed patterns, and validated (always solvable with single notes, feasible timings, no repetition). Advanced challenges and vassals are hand-designed.
 
 ## Develop

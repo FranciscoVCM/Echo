@@ -6,11 +6,27 @@
 - `docs/` — design notes, audit, roadmap and the original prompt.
 - `reference/` — course PDFs and assignments A2–A7 (local only, git-ignored, ~135 MB).
 - The colleague's folder (`Downloads/echo`) is **never modified**; only its Godot executable is used to run the game and tests.
-- Local git only, no remote.
+- Remote: github.com/FranciscoVCM/Echo (local `master` → remote `main`); downloadable build in Releases.
 
 **How to play:** desktop shortcut **ECHO - Jogar** (or `Jogar_Echo.bat`). **Editor:** **ECHO - Abrir Editor**.
 
 ---
+
+## 2026-11-23 (10) — Exploring over collecting, colour explosion at the end, touch finale
+
+**Why:** with 80% of an area needed, the game risked turning into a collecting game (rack up encounters to unlock the vassal). Now the vassal should be reachable almost right away, after interacting a little with the area.
+
+- **Vassals wake at 25%** of their area's blobs (`Game.AREA_WAKE_RATIO`). **No blob counter** in the HUD anymore (only the region name and the colours line).
+- Nobody announces that a vassal woke ("Algo despertou…" and K's "acordou" speech removed). The player finds out by going there: **awake vassals look different** — a little of their colour shows, eyes open, slow rings in their colour and motes of light circling them. Asleep: grey, closed eyes, "z". Freed: full colour, smiling eyes.
+- Near a sleeping vassal K says it sleeps and that helping some blobs here will wake it (no numbers). The **first vassal you meet** (asleep or awake) comes with an explanation of what vassals are (colours are still only revealed when the first one is freed).
+- **Area fully cleared** (every blob + its vassal): K says so, and that area's ink becomes stronger (shader: per-area extra chroma, soft-edged by region rect).
+- **Ending colour explosion**, scaled by the **bloom level** = share of ALL blobs helped (Clareira + 3 areas): level 1 below 50%, 2 from 50%, 3 from 75%, 4 = every blob. Rainbow rings + sparks from K (more and further with the level), flowers of every colour opening in a wave across the Clareira, the Nascente and the three areas (more patches per level), and a soft rainbow wash over the world (stronger per level). The black Nascente stays black, with colourful flowers on it.
+- **K comments** on how many blobs were helped ("Ajudaste X das Y blobs deste mundo…") with a line per level; below level 4 it says the world is still there and each blob helped brings more colour.
+- **After the end** the ending card has **"Continuar a explorar"**. Helping more blobs afterwards (also after "Continuar" from the title) raises the level: new burst, more flowers, K comments once per new level.
+- **K finale reordered so touch is the climax:** fragments in the dark (sight) → K's song (hearing) → trio with one wave → spikes: come close slowly and stay (touch) → **a final soft, close ping** (a faint circle shows how close) → ending. The old silence stage was removed.
+- **K collision check:** the test now probes the middle of the sanctum during the trio (no collider at K's/fragments' old spots) and walks the player straight through it. Passes.
+- **DEBUG (F8):** per area "normal" (just enough blobs + vassal) and "completa" (every blob + vassal); ending levels 1–4 (frees blobs up to the level; a lower level than what is already helped is forced for comparison).
+- Tests: `world_tests` **233 checks, 0 failures**; UI smoke OK. New `tests/capture_colour.tscn` (windowed) screenshots vassal states, full-area colour and ending levels 1/4.
 
 ## 2026-11-23 (9) — Replay test fixes before showing the group
 

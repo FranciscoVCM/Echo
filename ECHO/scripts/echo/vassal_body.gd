@@ -249,7 +249,10 @@ func _process(delta: float) -> void:
 func _current_color() -> Color:
 	var grey := Color(0.45, 0.46, 0.5)
 	if grey_until_freed and not completed:
-		return grey.lerp(base_color, glow * 0.6)
+		var lit := glow
+		if awake and letter != "K":
+			lit = maxf(glow, 0.4)  # awake: a little of its colour already shows
+		return grey.lerp(base_color, lit * 0.6)
 	return base_color
 
 
@@ -268,6 +271,8 @@ func _draw() -> void:
 	var shake := Vector2(sin(_time * 30.0) * 5.0 * _jolt, _droop * 5.0)
 	if _resonating():
 		shake += Vector2(sin(_time * 50.0), cos(_time * 43.0)) * 2.0
+	if awake and not completed and letter != "K":
+		_draw_awake_call()
 	var points := PackedVector2Array()
 	var breathing := 1.0 + sin(_time * (1.2 if awake else 0.5)) * 0.03
 	for index in range(48):
@@ -298,6 +303,11 @@ func _draw() -> void:
 				draw_arc(Vector2.ZERO, radius + 18.0, -PI * 0.5, -PI * 0.5 + TAU * approach_warmth, 64, Color(0.7, 0.95, 0.8, 0.9), 4.0, true)
 			if approach_tension > 0.05:
 				draw_arc(Vector2.ZERO, radius + 26.0, -PI * 0.5, -PI * 0.5 + TAU * approach_tension, 64, Color(1.0, 0.3, 0.3, 0.75), 3.0, true)
+		Mode.SOFT:
+			# Waiting for a soft touch: a faint circle shows how close is "close enough".
+			var breath := 0.5 + 0.5 * sin(_time * 2.0)
+			draw_arc(Vector2.ZERO, soft_distance, 0.0, TAU, 96, Color(0.85, 0.95, 1.0, 0.18 + 0.12 * breath), 2.0, true)
+			draw_arc(Vector2.ZERO, radius + 10.0 + breath * 5.0, 0.0, TAU, 64, Color(0.85, 0.95, 1.0, 0.45 + 0.3 * breath), 3.0, true)
 		Mode.NOTE:
 			# Waiting to be called by a colour: a pulsing ring in that colour.
 			var pulse := 0.5 + 0.5 * sin(_time * 3.0)
@@ -322,6 +332,20 @@ func _draw() -> void:
 	if not awake:
 		var z_alpha := 0.4 + 0.3 * sin(_time * 1.5)
 		draw_string(font, Vector2(radius * 0.6, -radius * 0.8 - fposmod(_time * 8.0, 16.0)), "z", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, z_alpha))
+
+
+## Awake but not yet helped: it calls out (slow rings in its colour) and little motes of
+## light circle it. Asleep it is grey and still ("z"); once helped it is fully coloured.
+func _draw_awake_call() -> void:
+	var tint := base_color.lightened(0.2)
+	for index in range(2):
+		var t := fposmod(_time / 2.6 + index * 0.5, 1.0)
+		draw_arc(Vector2.ZERO, radius * (1.05 + t * 1.4), 0.0, TAU, 64, Color(tint, 0.55 * (1.0 - t)), 3.0 * (1.0 - t) + 1.0, true)
+	for index in range(4):
+		var angle := _time * 0.9 + TAU * index / 4.0
+		var at := Vector2.RIGHT.rotated(angle) * radius * (1.32 + 0.06 * sin(_time * 2.0 + index))
+		draw_circle(at, 4.5, Color(tint, 0.85))
+		draw_circle(at, 9.0, Color(tint, 0.18))
 
 
 func _draw_face(offset: Vector2) -> void:

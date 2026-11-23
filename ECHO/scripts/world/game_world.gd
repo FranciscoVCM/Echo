@@ -16,6 +16,7 @@ var player: PlayerController
 var emitter: PingEmitter
 var fov: EchoFov
 var grading: ColorGrading
+var bloom: ColorBloom
 var hud: EchoHud
 var dialogue: DialogueBox
 var k_body: VassalBody
@@ -55,6 +56,8 @@ const VASSAL_HINTS := {
 ## [pattern, center, area] of the hand-made advanced challenges (for K's first-sight nudges).
 var _set_piece_spots: Array = []
 var _finale_gates: Array[MembraneGate] = []
+## DEBUG: shows a given bloom level regardless of how many blobs were helped (-1 = real).
+var _bloom_override := -1
 
 
 func _ready() -> void:
@@ -71,6 +74,14 @@ func _ready() -> void:
 	_scatter_flora()
 	grading = ColorGrading.new()
 	add_child(grading)
+	var rects: Array = []
+	for area in ["vista", "som", "tato"]:
+		rects.append(_region_rect(area))
+	grading.set_area_rects(rects)
+	bloom = ColorBloom.new()
+	bloom.name = "Bloom"
+	add_child(bloom)
+	bloom.build(geometry)
 	_creatures = Node2D.new()
 	_creatures.name = "Creatures"
 	add_child(_creatures)
@@ -118,6 +129,8 @@ func _ready() -> void:
 	_spawn_vassals()
 	_spawn_k()
 	_spawn_gates()
+	if _game.is_vassal_freed("K"):
+		bloom.set_level(bloom_level())
 	_update_grading(false)
 	companion = KCompanion.new(self)
 	add_child(companion)
@@ -141,6 +154,17 @@ func _ready() -> void:
 
 func _key(action: String) -> String:
 	return _game.key_label(action)
+
+
+func _region_rect(region_name: String) -> Rect2:
+	var polygons: Array = geometry.region_data(region_name).get("polygons", [])
+	if polygons.is_empty():
+		return Rect2()
+	var rect := Rect2((polygons[0] as PackedVector2Array)[0], Vector2.ZERO)
+	for polygon in polygons:
+		for point in polygon:
+			rect = rect.expand(point)
+	return rect
 
 
 # --- Building ---------------------------------------------------------------------------
@@ -517,15 +541,8 @@ func _refresh_area_ease() -> void:
 
 
 func _update_status() -> void:
+	# No blob counter on purpose: the areas are for exploring, not for collecting.
 	var lines: Array[String] = [_region_title(current_region)]
-	if current_region in _area_blobs and not _area_blobs[current_region].is_empty():
-		var freed := 0
-		for blob in _area_blobs[current_region]:
-			if blob.is_freed():
-				freed += 1
-		lines.append("Blobs ajudadas: %d / %d" % [freed, _area_blobs[current_region].size()])
-		if current_region in _game.AREAS and not vassals[_game.AREA_VASSAL[current_region]].awake:
-			lines.append("O vassalo acorda aos %d" % area_needed(current_region))
 	# The colours are only mentioned once the first guardian has given one back.
 	if _game.cmy_freed_count() > 0:
 		var cmy: Array[String] = []
@@ -604,13 +621,15 @@ func _on_blob_freed(blob: EchoBlob) -> void:
 	if area == "clearing":
 		if _area_complete("clearing") and not _game.progress["clearing_done"]:
 			_finish_clearing()
-	elif area in _game.AREAS and area_ready(area):
-		var letter: String = _game.AREA_VASSAL[area]
-		var vassal: VassalBody = vassals[letter]
-		if not vassal.awake:
-			vassal.wake()
-			hud.show_message("Algo despertou em %s." % _region_title(area), 4.0)
-			companion.on_vassal_awake(letter, area)
+	elif area in _game.AREAS:
+		if area_ready(area):
+			var vassal: VassalBody = vassals[_game.AREA_VASSAL[area]]
+			if not vassal.awake:
+				# Silently: nobody announces it. The player finds it awake (it looks different).
+				vassal.wake()
+		_check_area_full(area)
+	if _game.is_vassal_freed("K"):
+		_raise_bloom(blob.global_position)
 
 
 func _finish_clearing() -> void:
@@ -640,6 +659,7 @@ func on_vassal_completed(letter: String) -> void:
 			say([["C", "A minha voz... ouviste-a antes de mim."]], "C")
 		"M":
 			say([["M", "Esperaste por mim. Ninguém tinha esperado."]], "M")
+	_check_area_full(_area_of(letter))
 	if _game.cmy_freed_count() >= 3:
 		k_body.glide_to(Vector2(0, 0), 4.0)
 		if _sanctum_gate != null:
@@ -650,9 +670,82 @@ func on_vassal_completed(letter: String) -> void:
 		])
 
 
+## An area is "full" when every blob in it AND its vassal were helped: its ink gets stronger.
+func area_full(area: String) -> bool:
+	return _area_complete(area) and _game.is_vassal_freed(_game.AREA_VASSAL[area])
+
+
+func _check_area_full(area: String) -> void:
+	if not area in _game.AREAS or not area_full(area) or _game.dialogue_seen("full_" + area):
+		return
+	var color_name: String = {"vista": "O amarelo", "som": "O ciano", "tato": "O magenta"}[area]
+	_update_grading(true)
+	EchoMarker.spawn(player.global_position, VASSAL_COLORS[_game.AREA_VASSAL[area]], 120.0, get_tree(), true)
+	hud.show_message("%s: todas as blobs ajudadas." % _region_title(area), 5.0)
+	_say_once("full_" + area, [
+		"Ajudaste todas as blobs de %s. Não ficou ninguém perdido aqui." % _region_title(area),
+		"%s voltou a este lugar por inteiro. Repara como está mais forte." % color_name,
+	])
+
+
+func _area_full_vector() -> Vector3:
+	return Vector3(
+		1.0 if area_full("vista") else 0.0,
+		1.0 if area_full("som") else 0.0,
+		1.0 if area_full("tato") else 0.0)
+
+
+## Every blob of the world (Clareira + the three areas) and how many were helped.
+func blob_totals() -> Vector2i:
+	var freed := 0
+	var total := 0
+	for area in ["clearing", "vista", "som", "tato"]:
+		freed += area_freed(area)
+		total += area_total(area)
+	return Vector2i(freed, total)
+
+
+## 1..4: how much colour bursts out at the end (and after it), from the blobs helped.
+func bloom_level() -> int:
+	if _bloom_override > 0:
+		return _bloom_override
+	var totals := blob_totals()
+	if totals.y == 0:
+		return 1
+	var ratio := float(totals.x) / totals.y
+	var level := 1
+	for threshold in _game.BLOOM_THRESHOLDS:
+		if ratio >= threshold - 0.0001:
+			level += 1
+	return level
+
+
+func _bloom_strength(level: int) -> float:
+	return [0.0, 0.35, 0.55, 0.78, 1.0][clampi(level, 0, 4)]
+
+
+## After the ending, helping more blobs can raise the bloom level: more flowers, more colour.
+func _raise_bloom(at: Vector2) -> void:
+	var level := bloom_level()
+	if level <= bloom.level:
+		return
+	bloom.set_level(level, at)
+	ColorBloom.Burst.spawn(at, level, get_tree())
+	_update_grading(true)
+	hud.show_message("O mundo ganhou mais cor.", 4.0)
+	var lines := {
+		2: "Sentes? Cada blob que ouves deixa o mundo mais vivo.",
+		3: "Já quase todas cantam contigo. Nunca vi tantas cores juntas.",
+		4: "Todas. Não ficou ninguém para trás. Agora sim, o mundo inteiro tem cor.",
+	}
+	if lines.has(level):
+		_say_once("bloom_%d" % level, [lines[level]])
+
+
 func _update_grading(animate: bool) -> void:
+	grading.set_extras(_area_full_vector(), _bloom_strength(bloom.level) if _game.is_vassal_freed("K") else 0.0, animate, 4.0)
 	if _game.is_vassal_freed("K"):
-		grading.set_state(1.0, 1.0, 1.0, 1.05, animate)
+		grading.set_state(1.0, 1.0, 1.0, 1.05 + 0.04 * bloom.level, animate)
 		return
 	var c := 1.0 if _game.is_vassal_freed("C") else 0.0
 	var m := 1.0 if _game.is_vassal_freed("M") else 0.0
@@ -693,10 +786,12 @@ func _update_proximity_comments() -> void:
 		companion.on_near_sleeping_vassal(current_region)
 		return
 	if vassal.awake and not vassal.completed and vassal.global_position.distance_to(position) < 650.0:
-		var lines: Array = []
-		for line in vassal.call("meet_lines"):
-			lines.append([line[0], str(line[1]).replace("%SLOW%", _key("echo_slow"))])
-		_say_once("meet_" + letter, lines)
+		if not _game.dialogue_seen("meet_" + letter):
+			# The first vassal you meet (asleep or awake) comes with what vassals are.
+			var lines: Array = companion.vassal_intro_lines()
+			for line in vassal.call("meet_lines"):
+				lines.append([line[0], str(line[1]).replace("%SLOW%", _key("echo_slow"))])
+			_say_once("meet_" + letter, lines)
 		return
 	for blob in _area_blobs[current_region]:
 		if blob.state == EchoBlob.State.LOST and not blob.dormant and blob.visible and blob.global_position.distance_to(position) < 330.0:
@@ -835,12 +930,6 @@ func _start_final_stage(stage: int) -> void:
 			k_body.start_melody(PackedInt32Array([5, 2, 0]))
 			say([["K", "Agora ouve a minha canção... e devolve-ma."]])
 		3:
-			say([
-				["K", "Antes de seguires... chega-te a mim. Devagar."],
-				["K", "Os espinhos crescem quando me apressam. Fica perto até eles baixarem."],
-			])
-			k_body.start_approach()
-		4:
 			say([["K", "Ninguém se encontra sozinho. Chama as três ao mesmo tempo."]])
 			for pillar in [Vector2(-95, -40), Vector2(95, -40)]:
 				geometry.add_dynamic_obstacle(WorldGeometry.noisy_ellipse(pillar, 34, 34, 0.15, 999, 16))
@@ -852,11 +941,21 @@ func _start_final_stage(stage: int) -> void:
 			]}
 			var blobs := EncounterSpawner.spawn(spec, _creatures, geometry)
 			_final_trio = blobs[0].group
-			_final_trio.resolved.connect(func(_g: EchoBlobGroup) -> void: _start_final_stage(5))
+			_final_trio.resolved.connect(func(_g: EchoBlobGroup) -> void: _start_final_stage(4))
 			k_body.global_position = Vector2(0, -235)  # out of the way of the trio and pillars
+		4:
+			# Touch, last of all: the spikes grow if you rush. Come close calmly and stay.
+			k_body.glide_to(Vector2(0, -150), 1.5)
+			say([
+				["K", "Falta o último sentido. Chega-te a mim... devagar."],
+				["K", "Tenho espinhos, como a vassala do Bosque. Crescem quando me apressam. Fica perto até baixarem."],
+			])
+			k_body.start_approach()
 		5:
-			k_body.start_silence(6.0)
-			say([["K", "E agora... não digas nada. Só ouve."]])
+			k_body.soft_max_charge = 0.4
+			k_body.soft_distance = 170.0
+			k_body.start_soft()
+			say([["K", "Agora estás perto. Chama-me uma última vez... baixinho, como quem toca."]])
 
 
 func _on_final_fragment_freed(_blob: EchoBlob) -> void:
@@ -869,9 +968,9 @@ func _on_final_fragment_freed(_blob: EchoBlob) -> void:
 func _on_k_mode_completed(mode: int) -> void:
 	if mode == VassalBody.Mode.MELODY and _final_stage == 2:
 		_start_final_stage(3)
-	elif mode == VassalBody.Mode.APPROACH and _final_stage == 3:
-		_start_final_stage(4)
-	elif mode == VassalBody.Mode.SILENCE and _final_stage == 5:
+	elif mode == VassalBody.Mode.APPROACH and _final_stage == 4:
+		_start_final_stage(5)
+	elif mode == VassalBody.Mode.SOFT and _final_stage == 5:
 		_complete_game()
 
 
@@ -880,12 +979,17 @@ func _complete_game() -> void:
 	for gate in _finale_gates:
 		if is_instance_valid(gate):
 			gate.open()
+	k_body.visible = true
+	k_body.always_visible = true
+	k_body.modulate.a = 1.0
+	k_body.mode = VassalBody.Mode.IDLE
 	k_body.completed = true
 	k_body.remove_from_group("ping_blobs")
 	_game.free_vassal("K")
 	_game.progress["ended"] = true
+	var totals := blob_totals()
+	_game.progress["ending_blobs"] = [totals.x, totals.y]
 	_game.save_game()
-	_update_grading(true)
 	player.controls_enabled = false
 	emitter.input_enabled = false
 	var grow := k_body.create_tween().set_parallel(true)
@@ -893,13 +997,39 @@ func _complete_game() -> void:
 	k_body.glow = 1.0
 	k_body.base_color = Color(0.05, 0.05, 0.07)
 	geometry.set_floor_color("hub", BLACK_NASCENTE)
-	var lines := ElderSpeech.lines(_game.progress)
-	say(lines, "K", "ending")
-	dialogue.finished.connect(func(sequence: String) -> void:
-		if sequence == "ending":
-			var ending := ENDING_SCRIPT.new() as CanvasLayer
-			add_child(ending)
-	)
+	_celebrate(bloom_level())
+
+
+## The colour explosion: bigger (rings, sparks, flowers, saturation) the more blobs were
+## helped along the journey. Then K's closing words, which mention it.
+func _celebrate(level: int) -> void:
+	var origin := k_body.global_position
+	bloom.set_level(0)
+	var timer := get_tree().create_timer(1.6)
+	timer.timeout.connect(func() -> void:
+		ColorBloom.Burst.spawn(origin, level, get_tree())
+		bloom.set_level(level, origin)
+		_update_grading(true)
+		hud.show_message("A cor voltou ao mundo.", 5.0))
+	var talk := get_tree().create_timer(5.0)
+	talk.timeout.connect(func() -> void:
+		var totals := blob_totals()
+		say(ElderSpeech.lines(_game.progress, totals.x, totals.y, level), "K", "ending"))
+	if not dialogue.finished.is_connected(_on_ending_dialogue):
+		dialogue.finished.connect(_on_ending_dialogue)
+
+
+func _on_ending_dialogue(sequence: String) -> void:
+	if sequence == "ending":
+		var ending := ENDING_SCRIPT.new() as CanvasLayer
+		ending.set("world", self)
+		add_child(ending)
+
+
+## "Continuar a explorar" on the ending card: walk the coloured world, help who is left.
+func resume_after_ending() -> void:
+	player.controls_enabled = true
+	emitter.input_enabled = true
 
 
 # --- Input ------------------------------------------------------------------------------
@@ -984,7 +1114,7 @@ func debug_free_current_area() -> void:
 			blob.set_dormant(false)
 			blob.free_blob()
 			needed -= 1
-	hud.show_message("[DEBUG] Blobs ajudadas em %s." % _region_title(area), 2.5)
+	hud.show_message("[DEBUG] Blobs suficientes ajudadas em %s." % _region_title(area), 2.5)
 
 
 func debug_finish_clearing() -> void:
@@ -1007,3 +1137,66 @@ func debug_go_final() -> void:
 	for letter in ["Y", "C", "M"]:
 		debug_free_vassal(letter)
 	debug_teleport("hub", "test_start")
+
+
+func _debug_free_blob(blob: EchoBlob) -> void:
+	if not blob.is_freed():
+		blob.set_dormant(false)
+		blob.free_blob()
+
+
+## DEBUG: an area "normal clear" (just enough blobs to wake the vassal, vassal freed) or
+## "full clear" (every blob and the vassal: the stronger colour).
+func debug_clear_area(area: String, full: bool) -> void:
+	if not _game.progress["clearing_done"]:
+		debug_finish_clearing()
+	generate_area(area)
+	var target := area_total(area) if full else area_needed(area)
+	for blob in _area_blobs[area]:
+		if area_freed(area) >= target:
+			break
+		_debug_free_blob(blob)
+	dialogue.clear()
+	debug_free_vassal(_game.AREA_VASSAL[area])
+	debug_teleport(area, "entry")
+	hud.show_message("[DEBUG] %s: %s." % [_region_title(area), "tudo ajudado" if full else "vassalo libertado"], 3.0)
+
+
+## DEBUG: jump to the ending at a bloom level (1..4) to see the colour explosion and K's
+## words. Frees blobs up to that level; if more are already helped, the level is forced.
+func debug_ending(level: int) -> void:
+	if not _game.progress["clearing_done"]:
+		debug_finish_clearing()
+	for area in _game.AREAS:
+		generate_area(area)
+		for blob in _area_blobs[area]:
+			if area_freed(area) >= area_needed(area):
+				break
+			_debug_free_blob(blob)
+	_bloom_override = -1
+	var fractions := [0.0, 0.0, 0.5, 0.75, 1.0]
+	var totals := blob_totals()
+	var target := ceili(totals.y * float(fractions[level]))
+	var progressed := true
+	while blob_totals().x < target and progressed:
+		progressed = false
+		for area in _game.AREAS:  # round robin, so every area gets its share
+			for blob in _area_blobs[area]:
+				if not blob.is_freed():
+					_debug_free_blob(blob)
+					progressed = true
+					break
+			if blob_totals().x >= target:
+				break
+	if bloom_level() != level:
+		_bloom_override = level
+	for letter in ["Y", "C", "M"]:
+		debug_free_vassal(letter)
+	for blob in _final_fragments:
+		blob.set_dormant(true)
+	dialogue.clear()
+	debug_teleport("hub", "center")
+	if _game.is_vassal_freed("K"):
+		_celebrate(level)
+	else:
+		_complete_game()

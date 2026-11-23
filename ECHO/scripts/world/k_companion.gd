@@ -203,20 +203,27 @@ func on_blob_freed(blob: EchoBlob) -> void:
 		}[area]])
 
 
-func on_vassal_awake(_letter: String, area: String) -> void:
-	note_progress()
-	world.say_once("awake_" + area, [
-		"Ajudaste blobs suficientes em %s. Não precisas de encontrar todas." % world.region_title(area),
-		"O vassalo desta zona acordou, lá no fundo. Ficou sozinho muito tempo... vai ter com ele quando quiseres.",
-	])
+## What vassals are, said only once: the first time you meet one (asleep or awake).
+## Colours are not mentioned yet; that is revealed when the first vassal is freed.
+func vassal_intro_lines() -> Array:
+	if game.dialogue_seen("vassal_intro"):
+		return []
+	game.mark_dialogue("vassal_intro")
+	return [
+		["K", "Isto é um vassalo. Cada lugar deste mundo tem um, a guardá-lo."],
+		["K", "Quando deixámos de nos ouvir, também eles se fecharam... e levaram consigo uma coisa que o mundo perdeu."],
+	]
 
 
 ## Called by the world when the player comes near a guardian that is still asleep.
+## No numbers: the player is not told when it wakes, only that helping blobs here matters.
 func on_near_sleeping_vassal(area: String) -> void:
-	world.say_once("asleep_" + area, [
-		"Este é o vassalo desta zona. Está adormecido.",
-		"Vai acordar quando tiveres ajudado blobs suficientes por aqui: %d de %d." % [world.area_needed(area), world.area_total(area)],
-	])
+	if game.dialogue_seen("asleep_" + area):
+		return
+	var lines: Array = vassal_intro_lines()
+	lines.append(["K", "Este ainda dorme. As blobs daqui andam tão perdidas que nem ele as consegue ouvir."])
+	lines.append(["K", "Ajuda algumas das que encontrares por %s. Quando ele acordar, vais perceber." % world.region_title(area)])
+	world.say_once("asleep_" + area, lines)
 
 
 func on_vassal_completed(letter: String) -> void:

@@ -12,8 +12,13 @@ const CHORD_UNLOCK_COUNT := 5
 const NOTE_COUNT := 7
 const AREAS: PackedStringArray = ["vista", "som", "tato"]
 const AREA_VASSAL := {"vista": "Y", "som": "C", "tato": "M"}
-## Fraction of an area's creatures that must be helped before its guardian wakes.
-const AREA_WAKE_RATIO := 0.8
+## Fraction of an area's creatures that must be helped before its guardian wakes. Low on
+## purpose: the vassal should be reachable almost right away, after interacting a little
+## with the area (exploring, not collecting). There is no counter on screen.
+const AREA_WAKE_RATIO := 0.25
+## Fraction of ALL blobs helped (Clareira + the three areas) for each "bloom" level after K:
+## below the first value = level 1, then 2, 3, and 4 when every single blob was helped.
+const BLOOM_THRESHOLDS: Array[float] = [0.5, 0.75, 1.0]
 
 ## Rebindable actions: name -> [label, default physical keycode]. Movement also keeps arrows.
 const ACTIONS := [

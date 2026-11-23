@@ -204,9 +204,12 @@ func _test_full_playthrough() -> void:
 		world.player.global_position = spot_near(world.vassals[letter_check].global_position, 250.0)
 		await frames(10)
 		check(game.dialogue_seen("asleep_" + area), "near the sleeping %s guardian, K explains it wakes after enough blobs" % area)
+		check(game.dialogue_seen("vassal_intro"), "the first vassal met comes with what vassals are")
+		check(not world.hud._status_label.text.contains("/"), "no blob counter on screen (%s)" % world.hud._status_label.text.replace("
+", " | "))
 		skip_dialogue()
 		var needed: int = world.area_needed(area)
-		check(needed < blobs.size(), "%s guardian wakes at %d of %d (not all needed)" % [area, needed, blobs.size()])
+		check(needed < blobs.size() and needed <= ceili(blobs.size() * 0.3), "%s guardian wakes at %d of %d (only a few needed)" % [area, needed, blobs.size()])
 		if area == "tato":
 			var nervous: EchoBlob = null
 			for blob in blobs:
@@ -254,6 +257,10 @@ func _test_full_playthrough() -> void:
 		check(said.contains("voltou"), "after %s, K reflects and says the colour came back" % letter)
 		if area == "vista":
 			check(said.contains("menos escuro"), "after the first guardian K explains the world is less dark")
+		check(game.dialogue_seen("full_" + area), "every blob + the vassal of %s helped: K says the colour is fully back" % area)
+		await wait(4.5)
+		var full_index: int = {"vista": 0, "som": 1, "tato": 2}[area]
+		check(world.grading.area_full[full_index] > 0.95, "%s's ink is stronger once fully cleared" % area)
 
 	print("Chords: %s" % [game.unlocked_chords()])
 	check(game.unlocked_chords().size() >= 3, "several chords unlocked by playing (%d)" % game.unlocked_chords().size())
@@ -282,26 +289,89 @@ func _test_full_playthrough() -> void:
 		check(not blob.is_in_group("ping_blobs"), "returning fragment can no longer be pinged")
 	await solve_melody_body(world.k_body)
 	await wait(1.0)
-	check(world._final_stage == 3, "song answered -> K's spikes (approach slowly)")
-	world.player.global_position = spot_near(world.k_body.global_position, 90.0)
-	world.player.velocity = Vector2.ZERO
-	await wait(VassalBody.APPROACH_TIME + 0.8)
-	check(world._final_stage == 4, "staying calmly beside K -> trio around pillars")
+	check(world._final_stage == 3, "song answered -> trio around pillars")
+	await wait(2.0)
 	for blob in world._final_fragments:
 		check(blob.collision_layer == 0, "merged fragments leave no invisible collision")
+	# Nothing solid may be left where K and its fragments were (the middle of the sanctum).
+	var query := PhysicsPointQueryParameters2D.new()
+	query.collision_mask = 1 | 2 | WorldGeometry.WATER_LAYER
+	for probe in [Vector2(0, 0), Vector2(0, 20), Vector2(20, -10), Vector2(-20, 10), Vector2(0, -40)]:
+		query.position = probe
+		var hits := world.get_world_2d().direct_space_state.intersect_point(query)
+		var names: Array[String] = []
+		for hit in hits:
+			names.append(str(hit["collider"].name))
+		check(hits.is_empty(), "no invisible collision in the middle during the trio at %s %s" % [probe, names])
+	world.player.global_position = Vector2(0, 120)
+	world.player.velocity = Vector2.ZERO
+	await frames(2)
+	_press_direction(Vector2.UP)
+	await wait(1.4)
+	_release_direction()
+	check(world.player.global_position.y < -100.0, "you can walk straight through the middle of the sanctum (y=%.0f)" % world.player.global_position.y)
 	var trio_spot := find_same_wave_spot(world._final_trio.members, 450.0)
 	check(trio_spot != Vector2.INF, "there is a spot where one wave reaches the whole trio")
 	await ping_at(trio_spot, 6, 0.8)
-	await wait(0.5)
-	check(world._final_stage == 5, "trio freed -> silence")
-	world.player.global_position = Vector2(0, 250)
-	await wait(7.0)
-	check(game.is_vassal_freed("K"), "silence respected -> K freed, game complete")
+	await wait(2.0)
+	check(world._final_stage == 4, "trio freed -> K's spikes (touch: approach slowly)")
+	world.player.global_position = spot_near(world.k_body.global_position, 90.0)
+	world.player.velocity = Vector2.ZERO
+	await wait(VassalBody.APPROACH_TIME + 0.8)
+	check(world._final_stage == 5, "staying calmly beside K -> it waits for a soft touch")
+	await ping_at(spot_near(world.k_body.global_position, 300.0), 0, 1.0)
+	check(world._final_stage == 5, "a loud ping from afar does not count as a touch")
+	await ping_at(spot_near(world.k_body.global_position, 90.0), 0, 0.1)
+	check(game.is_vassal_freed("K"), "soft close ping -> K freed, game complete")
 	check(game.progress["ended"], "ending reached")
-	var lines := ElderSpeech.lines(game.progress)
+	await wait(2.5)
+	check(world.bloom.level == 4, "every blob helped -> biggest colour explosion (level %d)" % world.bloom.level)
+	check(world.bloom.patch_count_visible() > 80, "the world blooms with flowers (%d)" % world.bloom.patch_count_visible())
+	await wait(4.0)
+	check(world.grading.bloom > 0.9, "rainbow wash at full strength (%.2f)" % world.grading.bloom)
+	var totals := world.blob_totals()
+	var lines := ElderSpeech.lines(game.progress, totals.x, totals.y, world.bloom.level)
 	check(lines.size() >= 8, "K's closing speech has %d lines" % lines.size())
+	var speech := ""
 	for line in lines:
+		speech += str(line[1]) + " "
 		print("     K: " + str(line[1]))
+	check(speech.contains("das %d blobs" % totals.y), "K says how many blobs were helped")
+	for level in [1, 2, 3]:
+		var other := ""
+		for line in ElderSpeech.lines(game.progress, 10, 60, level):
+			other += str(line[1]) + " "
+		check(other != speech and other.contains("continua aqui"), "K's words change with the bloom level (%d)" % level)
+	await test_debug_endings()
+
+
+## Debug panel jumps: area normal/full clear and the four ending levels.
+func test_debug_endings() -> void:
+	print("Debug: area clears and ending levels")
+	world.queue_free()
+	await frames(3)
+	await _load_world()
+	world.debug_clear_area("som", false)
+	await frames(3)
+	check(game.is_vassal_freed("C") and not world.area_full("som"), "debug: Vale normal clear frees C, not every blob")
+	world.debug_clear_area("tato", true)
+	await frames(3)
+	check(game.is_vassal_freed("M") and world.area_full("tato"), "debug: Bosque full clear frees every blob and M")
+	world.debug_ending(1)
+	await wait(2.5)
+	check(game.is_vassal_freed("K") and world.bloom.level == 1, "debug: ending level 1 (%d)" % world.bloom.level)
+	var small := world.bloom.patch_count_visible()
+	world.debug_ending(3)
+	await wait(2.5)
+	check(world.bloom.level == 3 and world.bloom_level() == 3, "debug: ending level 3 frees blobs up to 75%")
+	check(world.bloom.patch_count_visible() > small, "more blobs helped -> more flowers (%d > %d)" % [world.bloom.patch_count_visible(), small])
+	world.debug_ending(2)
+	await wait(2.5)
+	check(world.bloom.level == 2, "debug: ending level 2 can be forced to compare")
+	world.debug_ending(4)
+	await wait(2.5)
+	var totals := world.blob_totals()
+	check(world.bloom.level == 4 and totals.x == totals.y, "debug: ending level 4 = every blob helped (%d/%d)" % [totals.x, totals.y])
 
 
 func skip_dialogue() -> void:

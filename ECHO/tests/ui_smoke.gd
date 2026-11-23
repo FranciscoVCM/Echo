@@ -33,5 +33,11 @@ func _run() -> void:
 	print("paused=", get_tree().paused)
 	world._pause_menu.close()
 	print("paused after close=", get_tree().paused)
+	world.debug_wake_vassal("C")
+	await get_tree().create_timer(0.5).timeout
+	print("debug wake C -> awake=", world.vassals["C"].awake, " stones=", world.vassals["C"].stones.size())
+	world.debug_go_final()
+	await get_tree().create_timer(0.5).timeout
+	print("debug go final -> CMY freed=", game.cmy_freed_count(), " chords=", game.unlocked_chords().size())
 	print("UI SMOKE DONE")
 	get_tree().quit()

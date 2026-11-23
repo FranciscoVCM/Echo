@@ -1,12 +1,14 @@
 class_name VassalC
 extends VassalBody
-## C - Vale dos Ecos (hearing). C lost its voice: it can only hum a broken little song.
-## Three echo stones around it each ring with one note when pinged (any note) - they are
-## instruments to find the notes by ear. Answer C's song note by note and its voice (and
-## the cyan of the world) comes back. No timer: listening, trying, comparing.
+## C - Vale dos Ecos (hearing). C lost its voice: it can only hum a broken little song,
+## without colour. Around it stand three echo stones, each showing its colour and note:
+## they are C's instruments. You don't answer C directly - you PLAY its song on the
+## stones: go to the right stone, in the order C hums, and call it up close.
+## Pinging C itself asks it to hum the song again. No timer; a wrong stone keeps your
+## progress and C hums the note it is waiting for.
 
-const SONG := [4, 0, 2]  # the order C hums (Sol, Dó, Mi)
-const STONE_NOTES := [0, 2, 4]  # notes of the stones left -> right (Dó, Mi, Sol)
+const SONG := [4, 0, 2, 0]  # the order C hums (Sol, Dó, Mi, Dó)
+const STONE_NOTES := [0, 2, 4]  # stones left -> right (Dó, Mi, Sol)
 
 var world: Node
 var stone_positions: Array[Vector2] = []
@@ -19,7 +21,7 @@ func _init() -> void:
 	radius = 60.0
 	awake = false
 	glow = 0.1
-	hum_interval = 6.5
+	hum_interval = 8.0
 
 
 func _ready() -> void:
@@ -37,24 +39,52 @@ func wake() -> void:
 		stone.colored = true  # the stones are the reference: colour + name shown
 		stone.position = stone_positions[index]
 		get_parent().add_child(stone)
+		stone.rung.connect(_on_stone_rung)
 		stones.append(stone)
 	start_melody(PackedInt32Array(SONG))
-
 
 
 ## Said by K when you first come close to this vassal after it woke up.
 func meet_lines() -> Array:
 	return [
-		["C", "(Um zumbido partido... três notas, e depois silêncio.)"],
-		["K", "Esta vassala perdeu a voz. Só consegue cantar três notas, baixinho, sem cor."],
-		["K", "As três pedras à volta lembram-se dos sons. Vai até uma e chama: ela toca a sua nota."],
-		["K", "Descobre que notas são as da canção, e devolve-lhas uma a uma, pela ordem em que ela as canta. Os pontos por cima dela mostram quantas já acertaste."],
+		["C", "(Um zumbido partido... quatro notas, sem cor.)"],
+		["K", "Esta vassala perdeu a voz. Só consegue trautear a sua canção, baixinho."],
+		["K", "As três pedras à volta eram os instrumentos dela. Vai até uma e chama-a de perto: ela toca a sua nota."],
+		["K", "Toca a canção dela nas pedras, pela ordem em que ela a canta. Se quiseres ouvi-la outra vez, chama-a a ela."],
 	]
+
+
+## Pinging C itself: it hums its song again (it doesn't take answers directly).
+func receive_ping_wave(wave: PingWave) -> void:
+	if wave.is_echo() or completed:
+		return
+	EchoMarker.spawn(global_position, _current_color(), radius, get_tree())
+	pinged.emit(wave)
+	_jolt = 0.4
+	if awake and mode == Mode.MELODY:
+		hum_melody()
+		_hum_timer = hum_interval
+
+
+func _on_stone_rung(stone: EchoStone) -> void:
+	if not awake or completed or mode != Mode.MELODY:
+		return
+	if stone.note == melody[melody_step]:
+		melody_step += 1
+		_flash = 1.0
+		glow = 0.1 + 0.2 * melody_step
+		if melody_step >= melody.size():
+			_finish_mode()
+	else:
+		# Keep the progress; after the stone's ring, C hums the note it is waiting for.
+		_jolt = 0.6
+		get_tree().create_timer(0.7).timeout.connect(func() -> void:
+			if not completed:
+				sing(melody[melody_step], 0.0))
 
 
 func _on_mode_completed(_mode: int) -> void:
 	completed = true
 	glow = 1.0
-	for stone in stones:
-		stone.colored = true
+	hum_melody()
 	world.on_vassal_completed("C")

@@ -6,6 +6,7 @@ extends Node2D
 const PLAYER_SCENE: PackedScene = preload("res://scenes/player.tscn")
 const ENDING_SCRIPT: Script = preload("res://scripts/ui/ending_screen.gd")
 const PAUSE_SCRIPT: Script = preload("res://scripts/ui/pause_menu.gd")
+const DEBUG_SCRIPT: Script = preload("res://scripts/ui/debug_panel.gd")
 const VASSAL_COLORS := {"C": Color(0.1, 0.85, 0.95), "M": Color(0.95, 0.22, 0.66), "Y": Color(1.0, 0.9, 0.15)}
 
 var geometry: WorldGeometry
@@ -37,8 +38,8 @@ var _intro_running := false
 var _challenge_time := 0.0
 const VASSAL_HINTS := {
 	"C": [
-		"Toca nas pedras com um ping, qualquer nota. Cada uma canta a sua... e a vassala canta três delas.",
-		"Responde-lhe pela ordem em que ela canta, uma nota de cada vez. Compara o que ela canta com o som das pedras e das tuas notas.",
+		"Vai até cada pedra e chama-a de perto: cada uma toca a sua nota. Qual delas soa como a primeira nota da canção?",
+		"Toca as pedras pela ordem da canção, uma de cada vez. Se te perderes, chama a vassala e ela canta outra vez.",
 	],
 	"Y": [
 		"As faíscas estão escondidas aqui no escuro. Só um ping as revela.",
@@ -85,6 +86,9 @@ func _ready() -> void:
 	dialogue.finished.connect(_on_dialogue_finished)
 	_pause_menu = PAUSE_SCRIPT.new()
 	add_child(_pause_menu)
+	var debug_panel: CanvasLayer = DEBUG_SCRIPT.new()
+	debug_panel.set("world", self)
+	add_child(debug_panel)
 
 	_spawn_currents()
 	_spawn_clearing()
@@ -438,6 +442,9 @@ func _update_theme(delta: float) -> void:
 			var ease := _area_ease("vista")
 			vision = lerpf(85.0, 250.0, ease)
 			opacity = lerpf(0.97, 0.86, ease)
+			if _game.is_vassal_freed("Y"):
+				vision = 290.0
+				opacity = 0.66  # the light came back to the caves
 		"som", "tato":
 			vision = 260.0
 			opacity = 0.7
@@ -509,7 +516,7 @@ func _update_status() -> void:
 			cmy.append(letter if _game.is_vassal_freed(letter) else "·")
 		lines.append("Cores: " + " ".join(cmy))
 	if _game.test_mode:
-		lines.append("[TESTE] F10 ajudar área · F11 viajar")
+		lines.append("[TESTE] F8 painel de debug")
 	hud.set_status("\n".join(lines))
 
 
@@ -863,10 +870,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		var key := (event as InputEventKey).physical_keycode
 		if key == KEY_H:
 			hud.toggle_help()
-		elif _game.test_mode and key == KEY_F10:
-			_debug_free_current_area()
-		elif _game.test_mode and key == KEY_F11:
-			_debug_travel()
 		else:
 			return
 	else:
@@ -874,27 +877,85 @@ func _unhandled_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-func _debug_free_current_area() -> void:
+# --- DEBUG (F8 panel; testing only) --------------------------------------------------------
+
+func _walkable_near(target: Vector2, distance: float) -> Vector2:
+	for ring in [distance, distance * 0.6, distance * 1.4]:
+		for index in range(16):
+			var probe: Vector2 = target + Vector2.RIGHT.rotated(TAU * index / 16.0) * float(ring)
+			if geometry.is_walkable(probe, 30.0):
+				return probe
+	return target
+
+
+func debug_teleport(region: String, marker: String) -> void:
+	var target: Vector2 = geometry.region_data(region)["markers"][marker]
+	if marker == "vassal":
+		target = _walkable_near(target, 320.0)
+	elif marker == "center":
+		target = Vector2(0, 180)
+	player.global_position = target
+	player.velocity = Vector2.ZERO
+
+
+func _area_of(letter: String) -> String:
+	for area in _game.AREA_VASSAL:
+		if _game.AREA_VASSAL[area] == letter:
+			return area
+	return ""
+
+
+func debug_wake_vassal(letter: String) -> void:
+	var area := _area_of(letter)
+	generate_area(area)
+	var vassal: VassalBody = vassals[letter]
+	if not vassal.awake:
+		vassal.wake()
+	debug_teleport(area, "vassal")
+	hud.show_message("[DEBUG] Vassalo %s acordado." % letter, 2.5)
+
+
+func debug_free_vassal(letter: String) -> void:
+	var vassal: VassalBody = vassals[letter]
+	if vassal.completed:
+		return
+	if not vassal.awake:
+		vassal.wake()
+	vassal.call("_finish_mode")
+
+
+func debug_free_current_area() -> void:
 	var area := current_region
 	if not area in _area_blobs:
 		return
+	var needed := area_needed(area) - area_freed(area) if area in _game.AREAS else area_total(area)
 	for blob in _area_blobs[area]:
-		if not blob.is_freed():
-			blob.free_blob()
-	hud.show_message("[TESTE] Todas as blobs de %s ajudadas." % _region_title(area), 2.5)
-
-
-func _debug_travel() -> void:
-	var stops := [
-		geometry.region_data("hub")["markers"]["test_start"],
-		geometry.region_data("vista")["markers"]["entry"],
-		geometry.region_data("som")["markers"]["entry"],
-		geometry.region_data("tato")["markers"]["entry"],
-	]
-	var best := 0
-	for index in range(stops.size()):
-		if player.global_position.distance_to(stops[index]) < 300.0:
-			best = (index + 1) % stops.size()
+		if needed <= 0:
 			break
-	player.global_position = stops[best]
-	player.velocity = Vector2.ZERO
+		if not blob.is_freed():
+			blob.set_dormant(false)
+			blob.free_blob()
+			needed -= 1
+	hud.show_message("[DEBUG] Blobs ajudadas em %s." % _region_title(area), 2.5)
+
+
+func debug_finish_clearing() -> void:
+	for blob in _area_blobs["clearing"]:
+		if not blob.is_freed():
+			blob.set_dormant(false)
+			blob.free_blob()
+	debug_teleport("hub", "test_start")
+
+
+func debug_grant_chords() -> void:
+	_game.grant_all_chords()
+	_apply_tone()
+	hud.show_message("[DEBUG] Todos os acordes.", 2.5)
+
+
+func debug_go_final() -> void:
+	if not _game.progress["clearing_done"]:
+		debug_finish_clearing()
+	for letter in ["Y", "C", "M"]:
+		debug_free_vassal(letter)
+	debug_teleport("hub", "test_start")

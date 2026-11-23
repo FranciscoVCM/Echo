@@ -38,6 +38,9 @@ func _process(_delta: float) -> void:
 func _apply() -> void:
 	if _material == null:
 		return
+	# Every ink back: settle to natural colour instead of the "returning" boost.
+	var all_back := restored.x > 0.99 and restored.y > 0.99 and restored.z > 0.99 and brightness > 1.0
+	_material.set_shader_parameter("chroma_boost", 1.15 if all_back else 1.8)
 	_material.set_shader_parameter("restored", restored)
 	_material.set_shader_parameter("brightness", brightness)
 

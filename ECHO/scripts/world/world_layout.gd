@@ -96,7 +96,7 @@ static func _clearing() -> Dictionary:
 
 static func _vista() -> Dictionary:
 	return {
-		"name": "vista", "title": "Grutas da Vista", "floor_color": Color(0.40, 0.35, 0.22),
+		"name": "vista", "title": "Grutas da Vista", "floor_color": Color(0.50, 0.42, 0.14),
 		"flora": [Color(0.95, 0.85, 0.4), Color(0.9, 0.7, 0.3), Color(0.8, 0.9, 0.6)],
 		"rooms": [
 			[Vector2(-1800, 0), 330, 270, 0.15, 31],
@@ -162,7 +162,7 @@ static func _som() -> Dictionary:
 	]
 	rocks.append_array(basin_stones)
 	return {
-		"name": "som", "title": "Vale dos Ecos", "floor_color": Color(0.20, 0.34, 0.40),
+		"name": "som", "title": "Vale dos Ecos", "floor_color": Color(0.14, 0.36, 0.44),
 		"flora": [Color(0.4, 0.85, 0.95), Color(0.6, 0.95, 0.9), Color(0.5, 0.7, 0.95)],
 		"rooms": [
 			[Vector2(0, -1650), 580, 300, 0.12, 41],
@@ -203,7 +203,7 @@ static func _som() -> Dictionary:
 		],
 		"markers": {
 			"entry": Vector2(0, -1350), "vassal": Vector2(0, -3540), "vassal_gate": Vector2(0, -3200),
-			"stone_0": Vector2(-280, -3600), "stone_1": Vector2(0, -3750), "stone_2": Vector2(280, -3600),
+			"stone_0": Vector2(-340, -3590), "stone_1": Vector2(0, -3790), "stone_2": Vector2(340, -3590),
 		},
 	}
 
@@ -251,7 +251,7 @@ static func _tato() -> Dictionary:
 				rocks.append([at, rng.randf_range(22.0, 36.0), 600 + rocks.size()])
 				placed += 1
 	return {
-		"name": "tato", "title": "Bosque do Toque", "floor_color": Color(0.38, 0.24, 0.33),
+		"name": "tato", "title": "Bosque do Toque", "floor_color": Color(0.44, 0.18, 0.34),
 		"flora": [Color(0.95, 0.5, 0.75), Color(0.85, 0.4, 0.6), Color(0.7, 0.9, 0.55)],
 		"rooms": rooms,
 		"corridors": [

@@ -70,6 +70,13 @@ func _run() -> void:
 	world._update_grading(false)
 	await _wait(0.5)
 	await _shot("10_tato_restored_cm")
+	game.progress["vassals"]["C"] = false
+	game.progress["vassals"]["M"] = false
+	game.progress["vassals"]["Y"] = true
+	world._update_grading(false)
+	await _goto(Vector2(-2150, 600))
+	await _wait(1.0)
+	await _shot("11_vista_after_y")
 	get_tree().quit()
 
 

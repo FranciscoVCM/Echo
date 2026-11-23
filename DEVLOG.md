@@ -12,6 +12,18 @@
 
 ---
 
+## 2026-11-23 (5) — Vassal C redesign, colour return, debug panel
+
+(Francisco was playing an older running build; several earlier notes were already fixed.)
+- Chord preview now really plays the chord, also when toggling with Q.
+- Vassals are explained by K when you ARRIVE (not when they wake far away). K gives a gentle then a clearer hint if you stay stuck near an awake vassal (~50 s / ~2 min). Other blobs hush during vassal challenges.
+- Vassal C redesigned so it differs from melody blobs: you PLAY its 4-note song (Sol, Dó, Mi, Dó) on the three echo stones (coloured + named), going to each and calling it up close; pinging C makes it hum the song again; a wrong stone keeps progress and C hums the awaited note. Stones moved away from C and ring only for pings within 170 px.
+- Colour return is much more visible (restored inks boosted, area floors more saturated) and the Caves' darkness lifts after Y.
+- DEBUG panel (F8, in game): travel to each area / vassal / sanctum, wake or free each vassal, help 80% of the current area, finish the Clareira, all chords, jump to the finale. Replaces F10/F11.
+- Tests: 180 checks, 0 failures; UI smoke covers the debug panel actions.
+
+---
+
 ## 2026-11-23 (4) — Playtest notes (Valley)
 
 - Audio: creature calls/answers much quieter (-7 dB), vassals and stones quieter, the player's own ping preview louder (+5 dB).

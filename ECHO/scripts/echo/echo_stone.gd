@@ -3,6 +3,8 @@ extends StaticBody2D
 ## A standing stone that rings with its note whenever a Ping touches it (any note).
 ## Used by C as a listening reference. Blocks movement, not Ping.
 
+signal rung(stone: EchoStone)
+
 var note := 0
 var colored := false
 var _ring := 0.0
@@ -28,7 +30,7 @@ func receive_ping(_source: Vector2, _is_echo: bool) -> void:
 	pass
 
 
-const RING_DISTANCE := 230.0
+const RING_DISTANCE := 170.0
 
 
 func receive_ping_wave(wave: PingWave) -> void:
@@ -36,6 +38,7 @@ func receive_ping_wave(wave: PingWave) -> void:
 	if wave.is_echo() or wave.global_position.distance_to(global_position) > RING_DISTANCE:
 		return
 	_ring = 1.0
+	rung.emit(self)
 	_voice.stream = EchoNotes.voice_stream(note)
 	_voice.pitch_scale = 0.5
 	_voice.volume_db = -9.0

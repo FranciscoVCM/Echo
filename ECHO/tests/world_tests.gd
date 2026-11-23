@@ -454,9 +454,14 @@ func solve_vassal(letter: String) -> void:
 		"C":
 			var c := vassal as VassalC
 			check(c.stones.size() == 3, "C: three echo stones")
-			await ping_at(spot_near(c.global_position, 150.0), 6, 0.3)
-			check(c.melody_step == 0, "C: a wrong first note keeps the song at the start")
-			await solve_melody_body(c)
+			await ping_at(c.global_position + Vector2(0, 160), 4, 0.3)
+			check(c.melody_step == 0, "C: answering C directly does nothing; the song is played on the stones")
+			for degree in VassalC.SONG:
+				for stone in c.stones:
+					if stone.note == degree:
+						await ping_at(spot_near(stone.global_position, 70.0), 0, 0.05)
+						await wait(0.3)
+			check(c.melody_step >= VassalC.SONG.size() or c.completed, "C: playing the stones in the song's order completes it")
 		"M":
 			var m := vassal as VassalM
 			# Rushing in raises tension (simulated with real input).

@@ -12,6 +12,16 @@
 
 ---
 
+## 2026-11-23 (7) — CMY layout order, finale lock, neutral Clareira
+
+- Areas now follow the CMY order around the Nascente: Vale (C) west, Bosque (M) north, Grutas (Y) east. They keep their hand-made shapes (rotated/mirrored by `WorldLayout._transform`; set pieces too). Saves from before regenerate their area blobs (layout_version 2); Clareira, vassals and chords are kept.
+- Clareira floor is neutral, so only the three zones carry an ink (cyan + yellow had made it green).
+- K's finale closes the Nascente's four exits with membranes until the end.
+- HUD colours show C M Y; K's dot appears only once the Voz has revealed itself.
+- Tests: 186 checks, 0 failures (incl. you can't walk out during the finale).
+
+---
+
 ## 2026-11-23 (6) — Chord trade-off, first-sight explanations, clearer vassal Y
 
 - Chords now have a cost: a chord splits the voice and reaches ~60% as far as a single note (K explains it). So switching back to one note is a real choice (lakes, far blobs, pairs across rocks).

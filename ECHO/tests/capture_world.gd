@@ -77,6 +77,15 @@ func _run() -> void:
 	await _goto(Vector2(-2150, 600))
 	await _wait(1.0)
 	await _shot("11_vista_after_y")
+	game.progress["vassals"]["C"] = true
+	game.progress["vassals"]["M"] = true
+	game.progress["vassals"]["Y"] = true
+	world._update_grading(false)
+	world.fov.visible = false
+	get_viewport().get_camera_2d().zoom = Vector2(0.28, 0.28)
+	await _goto(Vector2(0, 0))
+	await _wait(1.0)
+	await _shot("12_nascente_cmy")
 	get_tree().quit()
 
 

@@ -52,6 +52,7 @@ const VASSAL_HINTS := {
 }
 ## [pattern, center, area] of the hand-made advanced challenges (for K's first-sight nudges).
 var _set_piece_spots: Array = []
+var _finale_gates: Array[MembraneGate] = []
 
 
 func _ready() -> void:
@@ -418,7 +419,7 @@ func _enter_region(region: String) -> void:
 				])
 	elif region == "hub" and _game.progress["clearing_done"]:
 		_say_once("hub_first", [
-			"Esta é a Nascente. Daqui saem três caminhos: as Grutas a oeste, o Vale a norte, o Bosque a este.",
+			"Esta é a Nascente. Daqui saem três caminhos: o Vale a oeste, o Bosque a norte, as Grutas a este.",
 			"Em cada lugar há muitas blobs perdidas... e um vassalo adormecido.",
 			"Vai pela ordem que quiseres. Entra e sai quando quiseres.",
 		])
@@ -513,7 +514,10 @@ func _update_status() -> void:
 	# The colours are only mentioned once the first guardian has given one back.
 	if _game.cmy_freed_count() > 0:
 		var cmy: Array[String] = []
-		for letter in ["C", "M", "Y", "K"]:
+		var letters := ["C", "M", "Y"]
+		if _final_stage >= 2 or _game.is_vassal_freed("K"):
+			letters.append("K")
+		for letter in letters:
 			cmy.append(letter if _game.is_vassal_freed(letter) else "·")
 		lines.append("Cores: " + " ".join(cmy))
 	if _game.test_mode:
@@ -763,6 +767,14 @@ func _start_final_stage(stage: int) -> void:
 	var markers: Dictionary = geometry.region_data("hub")["markers"]
 	match stage:
 		1:
+			# No leaving the Nascente once K's challenge has begun.
+			for exit in [["exit_s", Vector2(320, 44)], ["exit_n", Vector2(320, 44)], ["exit_w", Vector2(44, 320)], ["exit_e", Vector2(44, 320)]]:
+				var gate := MembraneGate.new()
+				gate.size = exit[1]
+				gate.color = Color(0.3, 0.3, 0.35)
+				gate.position = markers[exit[0]]
+				add_child(gate)
+				_finale_gates.append(gate)
 			var missing: Array[int] = _game.grant_all_chords()
 			if not missing.is_empty():
 				var names: Array[String] = []
@@ -840,6 +852,9 @@ func _on_k_mode_completed(mode: int) -> void:
 
 func _complete_game() -> void:
 	_final_stage = 5
+	for gate in _finale_gates:
+		if is_instance_valid(gate):
+			gate.open()
 	k_body.completed = true
 	k_body.remove_from_group("ping_blobs")
 	_game.free_vassal("K")

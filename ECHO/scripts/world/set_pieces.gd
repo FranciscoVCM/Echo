@@ -16,6 +16,15 @@ extends RefCounted
 
 
 static func for_area(area: String) -> Array:
+	var specs := _authored(area)
+	for spec in specs:
+		for blob in spec["blobs"]:
+			var at := WorldLayout.transform_point(area, Vector2(blob["pos"][0], blob["pos"][1]))
+			blob["pos"] = [at.x, at.y]
+	return specs
+
+
+static func _authored(area: String) -> Array:
 	match area:
 		"vista":
 			return [

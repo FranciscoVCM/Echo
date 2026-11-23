@@ -242,6 +242,15 @@ func _test_full_playthrough() -> void:
 	world.player.global_position = Vector2(0, 150)
 	await frames(10)
 	check(world._final_stage == 1, "entering the sanctum starts K's challenge")
+	check(world._finale_gates.size() == 4, "the Nascente's four exits close during the finale")
+	var trapped_at := Vector2(-6, 760)
+	world.player.global_position = trapped_at
+	world.player.velocity = Vector2.ZERO
+	await frames(2)
+	_press_direction(Vector2.DOWN)
+	await wait(1.5)
+	_release_direction()
+	check(world.player.global_position.y < 860.0, "you cannot walk out of the Nascente during the finale (y=%.0f)" % world.player.global_position.y)
 	for blob in world._final_fragments:
 		await solve_blob(blob, [])
 	await wait(2.0)
@@ -465,9 +474,10 @@ func solve_vassal(letter: String) -> void:
 		"M":
 			var m := vassal as VassalM
 			# Rushing in raises tension (simulated with real input).
-			world.player.global_position = m.global_position + Vector2(-380, 0)
+			var start := spot_near(m.global_position, 380.0)
+			world.player.global_position = start
 			await frames(3)
-			_press_direction(Vector2.RIGHT)
+			_press_direction((m.global_position - start).normalized())
 			await wait(0.9)
 			_release_direction()
 			check(m.tension > 0.2 or m._rolling_to != Vector2.INF, "M: rushing towards it makes it tense (%.2f)" % m.tension)

@@ -14,8 +14,69 @@ extends RefCounted
 ## never a single path with dead ends.
 
 
+## Bump when area positions change (old saves then regenerate their areas).
+const LAYOUT_VERSION := 2
+
+
 static func regions() -> Array:
-	return [_hub(), _clearing(), _vista(), _som(), _tato()]
+	# Areas follow the CMY order around the hub: C (Vale) west, M (Bosque) north,
+	# Y (Grutas) east. They were authored elsewhere and are moved by these transforms.
+	return [_hub(), _clearing(), _transform(_vista(), "vista"), _transform(_som(), "som"), _transform(_tato(), "tato")]
+
+
+## Where each area was authored -> where it sits now.
+##   vista: authored west, mirrored to the east      (x, y) -> (-x, y)
+##   som:   authored north, turned to the west       (x, y) -> (y, -x)
+##   tato:  authored east, turned to the north       (x, y) -> (y, -x)
+static func transform_point(area: String, p: Vector2) -> Vector2:
+	match area:
+		"vista":
+			return Vector2(-p.x, p.y)
+		"som", "tato":
+			return Vector2(p.y, -p.x)
+	return p
+
+
+static func _swaps_axes(area: String) -> bool:
+	return area == "som" or area == "tato"
+
+
+static func _transform(region: Dictionary, area: String) -> Dictionary:
+	var swap := _swaps_axes(area)
+	var rooms: Array = []
+	for room in region.get("rooms", []):
+		rooms.append([transform_point(area, room[0]), room[2] if swap else room[1], room[1] if swap else room[2], room[3], room[4]])
+	region["rooms"] = rooms
+	for key in ["corridors", "ridges"]:
+		var lines: Array = []
+		for line in region.get(key, []):
+			var points: Array = []
+			for point in line[0]:
+				points.append(transform_point(area, point))
+			lines.append([points, line[1]])
+		region[key] = lines
+	var rocks: Array = []
+	for rock in region.get("rocks", []):
+		rocks.append([transform_point(area, rock[0]), rock[1], rock[2]])
+	region["rocks"] = rocks
+	var pools: Array = []
+	for pool in region.get("pools", []):
+		pools.append([transform_point(area, pool[0]), pool[2] if swap else pool[1], pool[1] if swap else pool[2], pool[3]])
+	region["pools"] = pools
+	var currents: Array = []
+	for current in region.get("currents", []):
+		var direction: Vector2 = transform_point(area, current[2])
+		currents.append([transform_point(area, current[0]), current[1], direction])
+	region["currents"] = currents
+	var sites: Array = []
+	for site in region.get("sites", []):
+		sites.append([transform_point(area, site[0]), site[1]])
+	region["sites"] = sites
+	var markers := {}
+	for name in region.get("markers", {}):
+		markers[name] = transform_point(area, region["markers"][name])
+	region["markers"] = markers
+	return region
 
 
 static func _hub() -> Dictionary:
@@ -44,6 +105,8 @@ static func _hub() -> Dictionary:
 		"markers": {
 			"center": Vector2(0, 0), "sanctum_gate": Vector2(0, 330),
 			"from_clearing": Vector2(0, 560), "test_start": Vector2(0, 520),
+			# Membranes that close the hub's four exits during K's finale.
+			"exit_s": Vector2(-6, 860), "exit_w": Vector2(-950, -30), "exit_n": Vector2(-40, -890), "exit_e": Vector2(950, 42),
 			"k_fragment_0": Vector2(-560, -260), "k_fragment_1": Vector2(560, -240),
 			"k_fragment_2": Vector2(-520, 300), "k_fragment_3": Vector2(540, 320),
 		},
@@ -52,7 +115,7 @@ static func _hub() -> Dictionary:
 
 static func _clearing() -> Dictionary:
 	return {
-		"name": "clearing", "title": "Clareira", "floor_color": Color(0.24, 0.36, 0.29),
+		"name": "clearing", "title": "Clareira", "floor_color": Color(0.30, 0.31, 0.30),  # neutral: only the 3 zones carry an ink
 		"flora": [Color(0.5, 0.85, 0.55), Color(0.85, 0.9, 0.5), Color(0.55, 0.8, 0.9)],
 		"rooms": [
 			[Vector2(-430, 1840), 230, 200, 0.18, 21],  # start nest
@@ -145,7 +208,7 @@ static func _vista() -> Dictionary:
 			"entry": Vector2(-1500, 0), "vassal": Vector2(-3760, 0), "vassal_gate": Vector2(-3590, 0),
 			"spark_0": Vector2(-3960, -180), "spark_1": Vector2(-3560, -250), "spark_2": Vector2(-3820, 280),
 			"y_anchor_0": Vector2(-3900, -60), "y_anchor_1": Vector2(-3700, -280),
-			"y_anchor_2": Vector2(-3600, 220), "y_anchor_3": Vector2(-3880, 230),
+			"y_anchor_2": Vector2(-3660, 270), "y_anchor_3": Vector2(-3880, 230),
 		},
 	}
 

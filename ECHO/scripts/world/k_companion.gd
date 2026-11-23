@@ -233,7 +233,7 @@ func on_vassal_completed(letter: String) -> void:
 	else:
 		lines.append("E %s voltou ao mundo." % color_word[letter])
 	var remaining: Array[String] = []
-	var places := {"Y": "as Grutas, a oeste da Nascente", "C": "o Vale, a norte da Nascente", "M": "o Bosque, a este da Nascente"}
+	var places := {"Y": "as Grutas, a este da Nascente", "C": "o Vale, a oeste da Nascente", "M": "o Bosque, a norte da Nascente"}
 	for other in ["Y", "C", "M"]:
 		if not game.is_vassal_freed(other) and other != letter:
 			remaining.append(places[other])

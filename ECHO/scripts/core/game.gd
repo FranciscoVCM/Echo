@@ -161,6 +161,7 @@ func new_progress(seed_value: int = -1) -> void:
 		"ended": false,
 		## Chords given by K at the start of the finale (so every chord can be used there).
 		"granted_chords": false,
+		"layout_version": WorldLayout.LAYOUT_VERSION,
 	}
 
 
@@ -287,6 +288,16 @@ func load_game() -> bool:
 	new_progress(int(data.get("seed", 0)))
 	for key in data:
 		progress[key] = data[key]
+	if int(progress.get("layout_version", 1)) != WorldLayout.LAYOUT_VERSION:
+		# The areas moved: their blobs are regenerated; vassals, chords from freed
+		# clearing blobs and the Clareira itself are kept.
+		progress["area_specs"] = {}
+		for blob_id in progress["freed"].keys():
+			if not str(blob_id).begins_with("clearing"):
+				if not (str(blob_id).begins_with("vassal") and progress["vassals"].get(str(blob_id).split(":")[1], false)):
+					progress["freed"].erase(blob_id)
+					progress["freed_area"].erase(blob_id)
+		progress["layout_version"] = WorldLayout.LAYOUT_VERSION
 	return true
 
 

@@ -7,3 +7,9 @@ captures/
 *.tmp
 .DS_Store
 Thumbs.db
+
+# Built game (published as a GitHub release, not committed)
+build/
+# Local launchers (point to this computer's Godot)
+Jogar_Echo.bat
+Abrir_Editor.bat

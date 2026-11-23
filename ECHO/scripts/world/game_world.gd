@@ -34,6 +34,21 @@ var _pause_menu: CanvasLayer
 var companion: KCompanion
 var currents: Array[CurrentZone] = []
 var _intro_running := false
+var _challenge_time := 0.0
+const VASSAL_HINTS := {
+	"C": [
+		"Toca nas pedras com um ping, qualquer nota. Cada uma canta a sua... e a vassala canta três delas.",
+		"Responde-lhe pela ordem em que ela canta, uma nota de cada vez. Compara o que ela canta com o som das pedras e das tuas notas.",
+	],
+	"Y": [
+		"As faíscas estão escondidas aqui no escuro. Só um ping as revela.",
+		"Quando as três faíscas voltarem, chama-a pela cor dela: o amarelo.",
+	],
+	"M": [
+		"Ela assusta-se se chegares depressa, ou se gritares. Mantém %s para andar devagar.",
+		"Fica junto dela, quieta, até os espinhos baixarem. Depois, um ping curto e de perto.",
+	],
+}
 ## [pattern, center, area] of the hand-made advanced challenges (for K's first-sight nudges).
 var _set_piece_spots: Array = []
 
@@ -371,6 +386,7 @@ func _process(delta: float) -> void:
 	_update_status()
 	_update_k_pointer()
 	_update_proximity_comments()
+	_update_vassal_hints(delta)
 
 
 func _enter_region(region: String) -> void:
@@ -526,6 +542,7 @@ func _toggle_chord() -> void:
 		return
 	_chord_mode = not _chord_mode
 	_apply_tone()
+	emitter.play_note_preview(-1)  # hear the chord (or the single note) right away
 
 
 func _on_chord_unlocked(pc: int) -> void:
@@ -652,6 +669,24 @@ func _update_proximity_comments() -> void:
 		if spot[2] == current_region and (spot[1] as Vector2).distance_to(position) < 360.0:
 			companion.on_near_set_piece(spot[0])
 			return
+
+
+## If you stay stuck near an awake vassal, K offers a gentle hint, then a clearer one.
+func _update_vassal_hints(delta: float) -> void:
+	var active := ""
+	for letter in vassals:
+		var vassal: VassalBody = vassals[letter]
+		if vassal.awake and not vassal.completed and vassal.global_position.distance_to(player.global_position) < 900.0:
+			active = letter
+	if active == "":
+		_challenge_time = 0.0
+		return
+	_challenge_time += delta
+	var hints: Array = VASSAL_HINTS[active]
+	if _challenge_time > 50.0 and not dialogue.is_busy():
+		_say_once("stuck1_" + active, [str(hints[0]).replace("%s", _key("echo_slow"))])
+	if _challenge_time > 120.0 and not dialogue.is_busy():
+		_say_once("stuck2_" + active, [str(hints[1])])
 
 
 ## True while a guardian's challenge (or K's finale) is in progress around the player.

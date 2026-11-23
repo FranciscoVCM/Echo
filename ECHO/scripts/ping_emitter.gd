@@ -173,7 +173,7 @@ func _select_ping_tone(index: int) -> void:
 
 
 func _play_tone_preview() -> void:
-	play_note_preview(ping_tone_index)
+	play_note_preview(-1)  # -1 = current tone, as a chord when chord tones are set
 
 
 func play_note_preview(tone_index: int = -1) -> void:

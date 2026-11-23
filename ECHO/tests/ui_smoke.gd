@@ -39,5 +39,11 @@ func _run() -> void:
 	world.debug_go_final()
 	await get_tree().create_timer(0.5).timeout
 	print("debug go final -> CMY freed=", game.cmy_freed_count(), " chords=", game.unlocked_chords().size())
+	game.progress["vassals"]["K"] = true
+	game.progress["clearing_done"] = true
+	get_tree().reload_current_scene()
+	await get_tree().create_timer(1.0).timeout
+	var after: GameWorld = get_tree().current_scene
+	print("after ending -> K radius=", after.k_body.radius, " visible=", after.k_body.visible, " hub floor=", after.geometry.region_data("hub")["floor_color"])
 	print("UI SMOKE DONE")
 	get_tree().quit()

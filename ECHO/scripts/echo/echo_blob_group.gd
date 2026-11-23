@@ -13,12 +13,17 @@ enum Mode {
 	SAME_WAVE,
 	CLUSTER,
 	TOGETHER,  ## only draws the link; members are helped one by one (e.g. the shy chorus)
+	TIME_WINDOW,  ## different colours; all must hear their note within `window_seconds` of the first
 }
 
 @export var mode: Mode = Mode.SAME_WAVE
 ## How long a partial SAME_WAVE mark stays visible before the blob feels alone again.
 @export_range(0.3, 4.0, 0.1) var partial_mark_duration := 1.6
 @export var draw_links := true
+## TIME_WINDOW: always long enough to do it note by note (chords only make it easier).
+@export_range(4.0, 30.0, 0.5) var window_seconds := 13.0
+var _window_remaining := 0.0
+var _window_hits: Dictionary = {}
 
 var members: Array[EchoBlob] = []
 var _resolved := false
@@ -60,6 +65,14 @@ func on_member_pinged(blob: EchoBlob, matched: bool, wave_id: int) -> void:
 			blob.group_mark = 1.0
 			if _cluster_hits.size() >= members.size():
 				_resolve()
+		Mode.TIME_WINDOW:
+			if _window_remaining <= 0.0:
+				_window_remaining = window_seconds
+				_window_hits.clear()
+			_window_hits[blob] = true
+			blob.group_mark = 1.0
+			if _window_hits.size() >= members.size():
+				_resolve()
 
 
 func _process(delta: float) -> void:
@@ -71,6 +84,18 @@ func _process(delta: float) -> void:
 		if all_freed:
 			_resolved = true
 			resolved.emit(self)
+	if not _resolved and mode == Mode.TIME_WINDOW and _window_remaining > 0.0:
+		_window_remaining -= delta
+		var ratio := maxf(_window_remaining / window_seconds, 0.0)
+		for member in members:
+			member.group_window_ratio = ratio if _window_hits.has(member) else -1.0
+		if _window_remaining <= 0.0:
+			for member in members:
+				if _window_hits.has(member):
+					member.droop()
+				member.group_mark = 0.0
+				member.group_window_ratio = -1.0
+			_window_hits.clear()
 	if not _resolved and mode == Mode.SAME_WAVE:
 		var any_marked := false
 		for member in members:

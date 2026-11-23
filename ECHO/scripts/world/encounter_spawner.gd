@@ -6,7 +6,7 @@ const BLOB_SCENE: PackedScene = preload("res://scenes/echo_blob.tscn")
 const NEEDS := {
 	"NOTE": EchoBlob.Need.NOTE, "SHY": EchoBlob.Need.SHY, "STIMULATED": EchoBlob.Need.STIMULATED,
 	"GENTLE": EchoBlob.Need.GENTLE, "CAUTIOUS": EchoBlob.Need.CAUTIOUS, "WARMTH": EchoBlob.Need.WARMTH,
-	"MELODY": EchoBlob.Need.MELODY, "PUSH": EchoBlob.Need.PUSH,
+	"MELODY": EchoBlob.Need.MELODY, "PUSH": EchoBlob.Need.PUSH, "NERVOUS": EchoBlob.Need.NERVOUS,
 }
 
 
@@ -24,6 +24,9 @@ static func spawn(spec: Dictionary, parent: Node, geometry: WorldGeometry) -> Ar
 				group.mode = EchoBlobGroup.Mode.SAME_WAVE
 			"cluster":
 				group.mode = EchoBlobGroup.Mode.CLUSTER
+			"window":
+				group.mode = EchoBlobGroup.Mode.TIME_WINDOW
+				group.window_seconds = float(spec.get("window", 13.0))
 			_:
 				group.mode = EchoBlobGroup.Mode.TOGETHER
 		container = group

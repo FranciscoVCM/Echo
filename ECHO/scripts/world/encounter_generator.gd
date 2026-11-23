@@ -17,7 +17,8 @@ const MAX_PER_PATTERN := 3
 const POOLS := {
 	"vista": {
 		"hidden_note": 3.0, "hidden_shy": 2.0, "shy": 1.0, "same_wave_pair": 2.0,
-		"same_wave_trio": 1.0, "cluster": 1.5, "stimulated": 1.0, "hidden_stimulated": 1.0,
+		"same_wave_trio": 1.0, "cluster": 1.0, "stimulated": 1.0, "hidden_stimulated": 1.0,
+		"window_trio": 1.5,
 	},
 	"som": {
 		"note": 3.0, "shy": 2.0, "melody2": 1.5, "same_wave_pair": 2.0,
@@ -25,7 +26,7 @@ const POOLS := {
 	},
 	"tato": {
 		"gentle": 3.0, "cautious": 2.0, "warmth": 2.0, "push": 2.0, "same_wave_pair": 1.0,
-		"stimulated": 1.0, "gentle_shy": 1.0,
+		"stimulated": 1.0, "gentle_shy": 1.0, "nervous": 2.0, "window_trio": 1.0,
 	},
 }
 
@@ -81,9 +82,9 @@ func _pick_pattern(area: String, site_radius: float) -> String:
 		var weight: float = pool[pattern]
 		if pattern == _last_pattern or _pattern_counts.get(pattern, 0) >= MAX_PER_PATTERN:
 			weight *= 0.05
-		if site_radius < 120.0 and (pattern.begins_with("same_wave") or pattern.begins_with("cluster") or pattern == "push"):
+		if site_radius < 120.0 and (pattern.begins_with("same_wave") or pattern.begins_with("cluster") or pattern.begins_with("window") or pattern == "push"):
 			weight = 0.0  # small alcoves only get single blobs
-		if pattern.begins_with("cluster") and not owned_chords.is_empty():
+		if (pattern.begins_with("cluster") or pattern.begins_with("window")) and not owned_chords.is_empty():
 			weight *= 2.0  # player influence: chords they own become useful
 		weights[pattern] = weight
 		total += weight
@@ -170,6 +171,13 @@ func _make(area: String, pattern: String, center: Vector2, radius: float) -> Dic
 			if point == Vector2.INF:
 				return {}
 			spec["blobs"].append(_blob(point, _pick_note(), "GENTLE", {"hits": 2}))
+		"nervous":
+			var point := _random_point(center, radius, 60.0)
+			if point == Vector2.INF or not _has_flee_room(point):
+				return {}
+			spec["blobs"].append(_blob(point, _pick_note(), "NERVOUS"))
+		"window_trio":
+			return _make_window(spec, center, radius)
 		"cautious":
 			var point := _random_point(center, radius, 60.0)
 			if point == Vector2.INF or not _has_flee_room(point):
@@ -285,6 +293,29 @@ func _make_cluster(spec: Dictionary, center: Vector2, radius: float, count: int)
 		for blob in spec["blobs"]:
 			blob["grey"] = true
 			blob["singer"] = true
+	return spec
+
+
+## Three blobs of different colours (a triad, so the matching chord helps) that must all
+## hear their note within a shared window. Evaluation: one spot sees all three, and the
+## window always allows three single-note pings with the cooldown, plus slack.
+func _make_window(spec: Dictionary, center: Vector2, radius: float) -> Dictionary:
+	var root := _pick_note()
+	if not owned_chords.is_empty() and rng.randf() < 0.6:
+		root = owned_chords[rng.randi() % owned_chords.size()]
+	var notes := [root, posmod(root + 2, 7), posmod(root + 4, 7)]
+	var anchor := _random_point(center, radius * 0.5, 60.0)
+	if anchor == Vector2.INF:
+		return {}
+	var base_angle := rng.randf() * TAU
+	for index in range(3):
+		var point := anchor + Vector2.RIGHT.rotated(base_angle + TAU * index / 3.0) * rng.randf_range(120.0, 170.0)
+		if not geometry.is_walkable(point, 40.0) or not _far_from_placed(point, 110.0) or not geometry.has_line_of_sight(anchor, point):
+			return {}
+		spec["blobs"].append(_blob(point, notes[index], "NOTE"))
+	spec["group"] = "window"
+	spec["window"] = snappedf(3 * PING_COOLDOWN + rng.randf_range(6.0, 8.0), 0.5)
+	spec["solution"] = [anchor.x, anchor.y]
 	return spec
 
 

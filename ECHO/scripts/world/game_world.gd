@@ -7,6 +7,8 @@ const PLAYER_SCENE: PackedScene = preload("res://scenes/player.tscn")
 const ENDING_SCRIPT: Script = preload("res://scripts/ui/ending_screen.gd")
 const PAUSE_SCRIPT: Script = preload("res://scripts/ui/pause_menu.gd")
 const DEBUG_SCRIPT: Script = preload("res://scripts/ui/debug_panel.gd")
+## K is the black ink: once it is back, the Nascente turns deep black.
+const BLACK_NASCENTE := Color(0.11, 0.11, 0.13)
 const VASSAL_COLORS := {"C": Color(0.1, 0.85, 0.95), "M": Color(0.95, 0.22, 0.66), "Y": Color(1.0, 0.9, 0.15)}
 
 var geometry: WorldGeometry
@@ -60,7 +62,12 @@ func _ready() -> void:
 	geometry = WorldGeometry.new()
 	geometry.name = "Geometry"
 	add_child(geometry)
-	geometry.build(WorldLayout.regions())
+	var layout := WorldLayout.regions()
+	if _game.is_vassal_freed("K"):
+		for region in layout:
+			if region["name"] == "hub":
+				region["floor_color"] = BLACK_NASCENTE
+	geometry.build(layout)
 	_scatter_flora()
 	grading = ColorGrading.new()
 	add_child(grading)
@@ -158,6 +165,8 @@ func _scatter_flora() -> void:
 			var at := Vector2(rng.randf_range(bounds.position.x, bounds.end.x), rng.randf_range(bounds.position.y, bounds.end.y))
 			if not Geometry2D.is_point_in_polygon(at, polygon) or not geometry.is_walkable(at, 50.0):
 				continue
+			if region["name"] == "hub" and at.length() < 360.0:
+				continue  # keep the sanctum clear for K's finale
 			var patch := FloraPatch.new()
 			patch.position = at
 			patch.flora_color = palette[rng.randi() % palette.size()]
@@ -277,7 +286,7 @@ func _p(point: Vector2) -> Array:
 
 func _spawn_area(area: String, specs: Array) -> void:
 	for spec in specs:
-		if spec.get("group", "") in ["cluster", "same_wave"]:
+		if spec.get("group", "") in ["cluster", "same_wave", "window"]:
 			var center := Vector2.ZERO
 			for data in spec["blobs"]:
 				center += Vector2(data["pos"][0], data["pos"][1])
@@ -358,6 +367,11 @@ func _spawn_k() -> void:
 	k_body.visible = _game.is_vassal_freed("K")
 	if _game.is_vassal_freed("K"):
 		k_body.position = Vector2(0, 0)
+		k_body.radius = 80.0
+		k_body.completed = true
+		k_body.awake = true
+		k_body.glow = 1.0
+		k_body.base_color = Color(0.05, 0.05, 0.07)
 	elif _game.progress["clearing_done"]:
 		k_body.position = Vector2(140, 140) if _game.cmy_freed_count() < 3 else Vector2(0, 0)
 	else:
@@ -830,7 +844,7 @@ func _start_final_stage(stage: int) -> void:
 			var blobs := EncounterSpawner.spawn(spec, _creatures, geometry)
 			_final_trio = blobs[0].group
 			_final_trio.resolved.connect(func(_g: EchoBlobGroup) -> void: _start_final_stage(4))
-			k_body.global_position = Vector2(0, 40)
+			k_body.global_position = Vector2(0, -235)  # out of the way of the trio and pillars
 		4:
 			k_body.start_silence(6.0)
 			say([["K", "E agora... não digas nada. Só ouve."]])
@@ -867,6 +881,7 @@ func _complete_game() -> void:
 	grow.tween_property(k_body, "radius", 80.0, 3.0).set_trans(Tween.TRANS_SINE)
 	k_body.glow = 1.0
 	k_body.base_color = Color(0.05, 0.05, 0.07)
+	geometry.set_floor_color("hub", BLACK_NASCENTE)
 	var lines := ElderSpeech.lines(_game.progress)
 	say(lines, "K", "ending")
 	dialogue.finished.connect(func(sequence: String) -> void:

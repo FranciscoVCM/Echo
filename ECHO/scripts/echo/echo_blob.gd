@@ -19,6 +19,7 @@ enum Need {
 	WARMTH,  ## Stay close for a while; once warm it wants its note once.
 	MELODY,  ## Answer its little song: the notes of `melody`, in order.
 	PUSH,  ## Lost from its nest: nudge it home with your body.
+	NERVOUS,  ## Tenses when you move fast near it (red ring); too tense and it rolls away. Come slowly, stay calm beside it, then call its note.
 }
 enum State { LOST, WAKING, FREED }
 
@@ -82,6 +83,10 @@ var _base_radius := 24.0
 var _shy_remaining := 0.0
 var _stim_remaining := 0.0
 var _warmth := 0.0
+var _tension := 0.0
+var _calm := 0.0
+const NERVOUS_RADIUS := 320.0
+const NERVOUS_CALM_TIME := 3.0
 var _warm := false
 var _melody_step := 0
 var _revealed := false
@@ -192,12 +197,48 @@ func _process_lost(delta: float) -> void:
 						_play_voice(note, -4.0)
 				else:
 					_warmth = maxf(_warmth - delta / (duration * 2.0), 0.0)
+		Need.NERVOUS:
+			_process_nervous(delta)
+
+
+func _process_nervous(delta: float) -> void:
+	if _warm or player == null or _fleeing:
+		return
+	var distance := player.global_position.distance_to(global_position)
+	var speed: float = (player.get("velocity") as Vector2).length() if "velocity" in player else 0.0
+	var threshold := lerpf(140.0, 210.0, ease)
+	if distance < NERVOUS_RADIUS and speed > threshold:
+		_tension = minf(_tension + delta * 1.3, 1.0)
+	else:
+		_tension = maxf(_tension - delta * 0.45, 0.0)
+	if _tension >= 1.0:
+		# Too much: it rolls away and you start over (calmly, this time).
+		_tension = 0.0
+		_calm = 0.0
+		_fleeing = true
+		_flee_target = global_position + (global_position - player.global_position).normalized() * 170.0
+		_set_emote("!", 1.0)
+		_add_stat("scares")
+		_play_voice(note, -6.0)
+		return
+	if distance < 125.0 and speed <= threshold and _tension < 0.35:
+		_calm = minf(_calm + delta / NERVOUS_CALM_TIME, 1.0)
+		if _calm >= 1.0:
+			_warm = true
+			_hit_flash = 1.0
+			_set_emote("<3", 1.5)
+			_play_voice(note, -4.0)
+	elif distance >= 125.0:
+		_calm = maxf(_calm - delta / (NERVOUS_CALM_TIME * 2.0), 0.0)
 
 
 func _physics_process(delta: float) -> void:
 	if state != State.LOST or player == null:
 		return
 	match need:
+		Need.NERVOUS:
+			if _fleeing:
+				_move_toward_target(delta, 220.0)
 		Need.CAUTIOUS:
 			_physics_cautious(delta)
 		Need.PUSH:
@@ -271,7 +312,8 @@ func receive_ping_wave(wave: PingWave) -> void:
 	if wave.is_echo() or dormant:
 		return
 	_revealed = true
-	EchoMarker.spawn(global_position, _display_color(), body_radius, get_tree())
+	if state != State.FREED and (not visible or modulate.a < 0.5):
+		EchoMarker.spawn(global_position, _display_color(), body_radius, get_tree())
 	var matched := wave.carries_pitch_class(_expected_note())
 	match state:
 		State.LOST:
@@ -340,6 +382,14 @@ func _on_lost_ping(wave: PingWave, matched: bool) -> void:
 			else:
 				_set_emote("...", 1.4)
 				_play_voice(note, -10.0)
+		Need.NERVOUS:
+			if _warm:
+				free_blob()
+			elif wave.get_charge() > 0.45 and distance < 450.0:
+				_tension = minf(_tension + 0.5, 1.0)
+				_jolt = 0.8
+			else:
+				_set_emote("...", 1.2)
 		Need.WARMTH:
 			if _warm:
 				free_blob()
@@ -575,7 +625,11 @@ func _draw() -> void:
 	if group_mark > 0.01:
 		var mark_color := Color(shown.lightened(0.3), group_mark)
 		draw_arc(Vector2.ZERO, body_radius + 8.0, 0.0, TAU, 48, Color(mark_color, 0.3 * group_mark), 5.0, true)
-		draw_arc(Vector2.ZERO, body_radius + 8.0, 0.0, TAU, 48, mark_color, 2.0, true)
+		if group_window_ratio >= 0.0:
+			# Time-window groups: the ring empties as the shared time runs out.
+			draw_arc(Vector2.ZERO, body_radius + 8.0, -PI * 0.5, -PI * 0.5 + TAU * group_window_ratio, 48, Color(1.0, 0.85, 0.4, 0.95), 3.0, true)
+		else:
+			draw_arc(Vector2.ZERO, body_radius + 8.0, 0.0, TAU, 48, mark_color, 2.0, true)
 
 	if state == State.LOST:
 		_draw_progress(shown)
@@ -626,6 +680,15 @@ func _draw_progress(shown: Color) -> void:
 	if need == Need.STIMULATED and _stim_remaining > 0.0:
 		_draw_meter(_stim_remaining / stim_window, Color(1.0, 0.85, 0.4))
 		_draw_small_text("%.0f s" % ceilf(_stim_remaining), Vector2(0, -body_radius - 26.0), Color(1, 0.9, 0.6, 0.9))
+	if need == Need.NERVOUS:
+		if _warm:
+			var pulse_n := 0.5 + 0.5 * sin(_time * 4.0)
+			draw_arc(Vector2.ZERO, body_radius + 10.0 + pulse_n * 4.0, 0.0, TAU, 48, Color(_true_color.lightened(0.3), 0.6 + 0.3 * pulse_n), 3.0, true)
+		else:
+			if _calm > 0.0:
+				_draw_meter(_calm, Color(0.6, 0.95, 0.7))
+			if _tension > 0.02:
+				draw_arc(Vector2.ZERO, body_radius + 16.0, -PI * 0.5, -PI * 0.5 + TAU * _tension, 48, Color(1.0, 0.3, 0.3, 0.85), 3.0, true)
 	if need == Need.WARMTH:
 		if _warm:
 			# Warm now: a pulsing ring in its own colour = "call me".
@@ -663,7 +726,7 @@ func _draw_face() -> void:
 			draw_circle(Vector2(side * spacing, eye_y), 3.4, eye_color)
 			draw_circle(Vector2(side * spacing + 0.8, eye_y - 0.8), 1.0, Color(1, 1, 1, 0.8))
 		return
-	var closed := need == Need.SHY or (need == Need.WARMTH and not _warm)
+	var closed := need == Need.SHY or (need == Need.WARMTH and not _warm) or (need == Need.NERVOUS and _tension > 0.3)
 	for side in [-1.0, 1.0]:
 		var center := Vector2(side * spacing, eye_y)
 		if closed:

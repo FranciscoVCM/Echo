@@ -68,6 +68,7 @@ func _test_geometry_and_pcg() -> void:
 			check(geometry.is_walkable(site[0], 30.0), "site %s %s is walkable" % [region["name"], site[0]])
 
 	print("PCG (several seeds)")
+	var patterns_seen := {}
 	for seed_value in [1, 77, 2024, 31337, 9]:
 		var generator := EncounterGenerator.new(geometry, seed_value)
 		# The clearing already has Fá, Mi, Dó, Sol x2, Ré, Lá (as the game passes it in).
@@ -93,6 +94,10 @@ func _test_geometry_and_pcg() -> void:
 			check(blob_count + fixed_counts[area] >= 13, "seed %d %s: %d generated + %d hand-made" % [seed_value, area, blob_count, fixed_counts[area]])
 		var usage: Array[int] = clearing_usage.duplicate()
 		for spec in all_specs:
+			patterns_seen[spec["pattern"]] = true
+			if spec.get("group", "") == "window":
+				if float(spec["window"]) < 3 * 2.0 + 4.0:
+					check(false, "seed %d window group leaves enough time without chords" % seed_value)
 			for blob in spec["blobs"]:
 				usage[int(blob["note"])] += 1
 				if spec.get("group", "") == "same_wave":
@@ -109,6 +114,7 @@ func _test_geometry_and_pcg() -> void:
 		for count in usage:
 			min_usage = mini(min_usage, count)
 		check(min_usage >= 5, "seed %d: every note has >= 5 creatures in the world, so every chord is reachable (%s), %d rejected, %d ms" % [seed_value, usage, generator.rejected, Time.get_ticks_msec() - t1])
+	check(patterns_seen.has("window_trio") and patterns_seen.has("nervous"), "PCG produces the new time-window trios and nervous blobs")
 	geometry.queue_free()
 
 
@@ -201,6 +207,22 @@ func _test_full_playthrough() -> void:
 		skip_dialogue()
 		var needed: int = world.area_needed(area)
 		check(needed < blobs.size(), "%s guardian wakes at %d of %d (not all needed)" % [area, needed, blobs.size()])
+		if area == "tato":
+			var nervous: EchoBlob = null
+			for blob in blobs:
+				if blob.need == EchoBlob.Need.NERVOUS and not blob.is_freed():
+					nervous = blob
+					break
+			check(nervous != null, "the Forest has a nervous blob")
+			if nervous != null:
+				var start := spot_near(nervous.global_position, 280.0)
+				world.player.global_position = start
+				await frames(3)
+				_press_direction((nervous.global_position - start).normalized())
+				await wait(1.0)
+				_release_direction()
+				check(nervous._tension > 0.3 or nervous._fleeing, "rushing at the nervous blob makes it tense (%.2f)" % nervous._tension)
+				await wait(3.0)
 		var specs: Array = SetPieces.for_area(area) + game.progress["area_specs"][area]
 		var woke_at := -1
 		for spec in specs:
@@ -358,6 +380,11 @@ func solve_spec(spec: Dictionary, area: String) -> void:
 		"cluster":
 			for blob in blobs:
 				await ping_at(spot_near(blob.global_position, 130.0), blob.note, 0.3)
+		"window":
+			# Note by note (no chord), from the spot that sees all three, within the window.
+			var anchor := Vector2(spec["solution"][0], spec["solution"][1])
+			for blob in blobs:
+				await ping_at(anchor, blob.note, 0.45)
 		_:
 			for blob in blobs:
 				await solve_blob(blob, [])
@@ -402,6 +429,12 @@ func solve_blob(blob: EchoBlob, _context: Array) -> void:
 				await wait(0.3)
 		EchoBlob.Need.PUSH:
 			await push_home(blob)
+		EchoBlob.Need.NERVOUS:
+			# Arrive without rushing (teleport = no speed), stay calm beside it, then call.
+			world.player.global_position = spot_near(blob.global_position, 80.0)
+			world.player.velocity = Vector2.ZERO
+			await wait(EchoBlob.NERVOUS_CALM_TIME + 0.6)
+			await ping_at(spot_near(blob.global_position, 80.0), blob.note, 0.2)
 	await wait(0.3)
 	if not blob.is_freed():
 		print("     (retry %s need=%d)" % [blob.blob_id, blob.need])

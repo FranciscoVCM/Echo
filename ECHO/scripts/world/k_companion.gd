@@ -270,7 +270,8 @@ func _explain_chord(pc: int) -> void:
 		world.say_once("first_chord", [
 			"Ajudaste cinco blobs de %s. Agora essa nota pode soar como um acorde: %s." % [EchoNotes.name_for(pc), EchoNotes.chord_name_for(pc)],
 			"Escolhe %s e carrega %s. O teu ping passa a levar %s ao mesmo tempo, e qualquer blob dessas cores o ouve." % [EchoNotes.name_for(pc), game.key_label("echo_chord"), names],
-			"Mas um acorde divide a tua voz: chega menos longe do que uma nota só. Para chamar longe, volta a uma nota (%s outra vez)." % game.key_label("echo_chord"),
+			"Qualquer das três notas do acorde serve a uma blob. Mas numa canção, cada ping conta só uma nota de cada vez.",
+			"E um acorde divide a tua voz: chega menos longe do que uma nota só. Para chamar longe, volta a uma nota (%s outra vez)." % game.key_label("echo_chord"),
 		])
 	else:
 		world.say(["Também o teu %s pode ser acorde agora: %s (%s)." % [EchoNotes.name_for(pc), EchoNotes.chord_name_for(pc), names]])
@@ -283,6 +284,7 @@ func on_first_need(need: int) -> void:
 		EchoBlob.Need.CAUTIOUS: ["Esta é desconfiada. Se chegares a correr, foge.", "Aproxima-te devagar (%s) e só então chama-a, já de perto." % game.key_label("echo_slow")],
 		EchoBlob.Need.WARMTH: ["Esta tem frio. Fica perto dela um bocadinho: o anel enche enquanto aquece.", "Quando aquecer, vai querer ouvir a sua nota."],
 		EchoBlob.Need.PUSH: ["Esta perdeu-se do ninho: aquele círculo da cor dela.", "Encosta-te a ela e empurra-a com cuidado até lá."],
+		EchoBlob.Need.NERVOUS: ["Esta é nervosa: o anel vermelho cresce se te mexeres depressa perto dela.", "Chega devagar (%s), fica ao lado dela até acalmar, e depois chama-a." % game.key_label("echo_slow")],
 		EchoBlob.Need.MELODY: ["Esta canta uma pequena melodia.", "Responde-lhe nota a nota, pela ordem. Os pontos mostram quantas já acertaste; se errares, ela canta-te a que falta."],
 	}
 	if lines.has(need):
@@ -298,6 +300,7 @@ func on_near_set_piece(pattern: String) -> void:
 		"current": ["Do outro lado da corrente há uma blob desconfiada. Entrar a correr pode não ser boa ideia."],
 		"cluster": ["Estas estão juntas, mas cada uma quer a sua própria nota.", "Só se soltam quando todas tiverem ouvido a sua. A ordem não importa."],
 		"same_wave": ["Da mesma cor, e separadas. Lembras-te do par da Clareira? Uma só onda que chegue a todas."],
+		"window": ["Três cores diferentes, ligadas umas às outras.", "Precisam de ouvir as suas notas quase ao mesmo tempo: quando chamares a primeira, o tempo começa a contar. Há tempo para as três... e um acorde ajuda."],
 	}
 	if nudges.has(pattern):
 		world.say_once("near_sp_" + pattern, nudges[pattern])

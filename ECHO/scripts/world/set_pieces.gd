@@ -54,7 +54,7 @@ static func _authored(area: String) -> Array:
 					{"pos": [3160, 820], "note": 6, "need": "GENTLE", "hits": 2},
 				]),
 				neighbours("tato:sp:neighbours", area, [
-					{"pos": [3090, -760], "note": 4, "need": "WARMTH", "warmth_duration": 4.5},
+					{"pos": [3090, -760], "note": 4, "need": "NERVOUS"},
 					{"pos": [3260, -880], "note": 1, "need": "SHY", "shy_silence": 5.0},
 				]),
 			]

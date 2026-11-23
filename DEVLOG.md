@@ -12,6 +12,18 @@
 
 ---
 
+## 2026-11-23 (8) — Finale polish, time-window groups, nervous blobs, after the end
+
+- Sonar silhouettes only for blobs that still need help and are not visible (no more circles where "nobody is").
+- Chords: any of the chord's notes works for a blob; in a song each ping counts one note (K explains it).
+- New group: TIME_WINDOW — three different colours (a triad) that must all hear their note within a shared window; always enough time with single notes (3 pings + 6–8 s slack, validated), a chord makes it easy. Countdown ring on marked members. PCG in Grutas and Bosque; K nudge on first sight.
+- New touch blob: NERVOUS (like vassal M, small): a red ring grows if you move fast nearby; too tense and it rolls away; come slowly, stay calm beside it (green ring), then call its note. PCG in the Bosque + replaces the cold one in the Bosque "neighbours" challenge (next to a shy one).
+- Finale: K moves to the top of the sanctum during the trio, no flora inside the sanctum.
+- After the ending, Continue shows K at its full size and the Nascente turned black (K = the black ink).
+- Tests: 189 checks, 0 failures (new types appear and behave; window time is feasible); UI smoke checks K/Nascente after the end.
+
+---
+
 ## 2026-11-23 (7) — CMY layout order, finale lock, neutral Clareira
 
 - Areas now follow the CMY order around the Nascente: Vale (C) west, Bosque (M) north, Grutas (Y) east. They keep their hand-made shapes (rotated/mirrored by `WorldLayout._transform`; set pieces too). Saves from before regenerate their area blobs (layout_version 2); Clareira, vassals and chords are kept.

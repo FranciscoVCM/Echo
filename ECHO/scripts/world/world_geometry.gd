@@ -381,6 +381,13 @@ func region_at(point: Vector2) -> String:
 	return ""
 
 
+func set_floor_color(name: String, color: Color) -> void:
+	for region in regions:
+		if region["name"] == name:
+			region["floor_color"] = color
+	_rebuild_drawing()
+
+
 func region_data(name: String) -> Dictionary:
 	for region in regions:
 		if region["name"] == name:

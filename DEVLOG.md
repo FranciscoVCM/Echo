@@ -12,6 +12,18 @@
 
 ---
 
+## 2026-11-23 (11) — Three ending animations, calmer colour levels, visible full-area colour
+
+- **Colour per level reworked.** The world is always coloured after K (all four inks back), but level 1 (<50% of the blobs) adds almost nothing on top: no rainbow wash, only 3 flowers in the Nascente. Level 2 (50%+) is a clear step, level 3 (75%+) a little more, level 4 (every blob) is huge (wash, brighter, 160+ flower patches).
+- **Three different animations** (`ColorBloom.Burst`):
+  - *Level 1, soft:* one slow pale ring, a few drifting motes, one low note.
+  - *Levels 2–3, rainbow:* the seven colours ring out from K, a fountain of sparks, an arpeggio (level 3: more rings, further, a fuller arpeggio).
+  - *Level 4, grand:* white flash, three waves of rainbow rings across the whole view, 18 fireworks popping around, the full scale ending in a chord; the camera pulls back and the fog lifts, and every helped blob nearby answers with its colour and voice in a wave. K's words start later so the moment can play out.
+  - Raising the level after the end replays the animation of the new level.
+- **Full area clear is now visible:** the area's ink was already at maximum, so "stronger" did nothing. Now a fully cleared area becomes lighter and more vivid (less grey under the ink, +18% brightness), only on coloured surfaces (walls stay dark).
+- **Debug ending:** the player is placed just below K so both are in view.
+- Tests: 237 checks, 0 failures.
+
 ## 2026-11-23 (10) — Exploring over collecting, colour explosion at the end, touch finale
 
 **Why:** with 80% of an area needed, the game risked turning into a collecting game (rack up encounters to unlock the vassal). Now the vassal should be reachable almost right away, after interacting a little with the area.

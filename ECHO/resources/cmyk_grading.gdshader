@@ -49,12 +49,17 @@ void fragment() {
 		+ area_full.y * rect_weight(area_rect_1, world_pos)
 		+ area_full.z * rect_weight(area_rect_2, world_pos);
 	float boost = chroma_boost + 0.9 * full + 0.7 * bloom;
-	vec3 graded = clamp(vec3(k) + (cmy - vec3(k)) * restored * boost, 0.0, 1.0);
+	// The ink is usually already at full strength, so "stronger" means lighter and more vivid:
+	// less of the grey/black part under it (a fully cleared area glows in its colour).
+	// Only on coloured surfaces (floors, flora): walls and the black Nascente stay dark.
+	float chroma = max(cmy.r, max(cmy.g, cmy.b)) - k;
+	float k_left = 1.0 - (0.5 * full + 0.25 * bloom) * smoothstep(0.03, 0.15, chroma);
+	vec3 graded = clamp(vec3(k * k_left) + (cmy - vec3(k)) * restored * boost, 0.0, 1.0);
 	vec3 result = (vec3(1.0) - graded);
 	// Slightly darker greys while colour is missing, so restored areas feel alive.
 	float luma = dot(rgb, vec3(0.299, 0.587, 0.114));
 	result = mix(vec3(luma), result, 0.35 + 0.65 * max(restored.r, max(restored.g, restored.b)));
-	result *= brightness * (1.0 + 0.12 * full);
+	result *= brightness * (1.0 + 0.18 * full);
 	// After the end: a slow rainbow drifting over the ground (every colour, not only CMYK).
 	if (bloom > 0.0) {
 		float h = world_pos.x * 0.00045 - world_pos.y * 0.00035 + sin(world_pos.y * 0.0021 + time_s * 0.15) * 0.18 + time_s * 0.01;

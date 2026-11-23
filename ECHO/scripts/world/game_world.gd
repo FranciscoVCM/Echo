@@ -63,6 +63,8 @@ var _bloom_override := -1
 ## While the ending plays (explosion + K's words), no other dialogue may cut in.
 var _ending_lock := false
 var _celebration_id := 0
+## Extra vision while the level-4 explosion plays (the fog lifts, the camera pulls back).
+var _vision_boost := 0.0
 
 
 func _ready() -> void:
@@ -498,8 +500,8 @@ func _update_theme(delta: float) -> void:
 		vision = 110.0
 		opacity = 0.96
 	if _game.is_vassal_freed("K"):
-		vision = 420.0
-		opacity = 0.35
+		vision = 420.0 + _vision_boost
+		opacity = 0.35 - _vision_boost / 3000.0
 	fov.vision_radius = lerpf(fov.vision_radius, vision, 1.0 - exp(-delta * 2.0))
 	fov.fog_opacity = lerpf(fov.fog_opacity, opacity, 1.0 - exp(-delta * 2.0))
 	var lights: Array = []
@@ -725,8 +727,47 @@ func bloom_level() -> int:
 	return level
 
 
+## Rainbow wash / extra vividness per level. Level 1 adds (almost) nothing: the world just has
+## its four inks back. 2 is a clear step, 3 a little more, 4 (every blob) is the big one.
 func _bloom_strength(level: int) -> float:
-	return [0.0, 0.35, 0.55, 0.78, 1.0][clampi(level, 0, 4)]
+	return [0.0, 0.05, 0.4, 0.52, 1.0][clampi(level, 0, 4)]
+
+
+## The colour animation of a level (see ColorBloom.Burst): flowers open in a wave from
+## `origin`, the grading follows; at level 4 the camera pulls back, the fog lifts and every
+## helped blob nearby answers with its colour and voice.
+func _play_color_animation(level: int, origin: Vector2) -> void:
+	ColorBloom.Burst.spawn(origin, level, get_tree())
+	bloom.set_level(level, origin)
+	_update_grading(true)
+	if level < 4:
+		return
+	var camera := get_viewport().get_camera_2d()
+	if camera != null:
+		var zoom := camera.create_tween()
+		zoom.tween_property(camera, "zoom", Vector2(0.62, 0.62), 1.8).set_trans(Tween.TRANS_SINE)
+		zoom.tween_interval(5.0)
+		zoom.tween_property(camera, "zoom", Vector2(1.15, 1.15), 2.5).set_trans(Tween.TRANS_SINE)
+	var lift := create_tween()
+	lift.tween_property(self, "_vision_boost", 700.0, 1.8)
+	lift.tween_interval(5.0)
+	lift.tween_property(self, "_vision_boost", 0.0, 2.5)
+	var answering: Array = []
+	for blob in _all_blobs():
+		if blob.is_freed() and not blob.dormant and blob.global_position.distance_to(origin) < 1700.0:
+			answering.append(blob)
+	answering.sort_custom(func(a: EchoBlob, b: EchoBlob) -> bool:
+		return a.global_position.distance_to(origin) < b.global_position.distance_to(origin))
+	for index in range(answering.size()):
+		var blob: EchoBlob = answering[index]
+		var timer := get_tree().create_timer(0.5 + blob.global_position.distance_to(origin) / 650.0)
+		var with_voice := index < 10
+		timer.timeout.connect(func() -> void:
+			if not is_instance_valid(blob):
+				return
+			EchoMarker.spawn(blob.global_position, EchoNotes.color_for(blob.note), blob.body_radius * 1.4, get_tree(), true)
+			if with_voice:
+				blob.call("_play_voice", blob.note, -8.0))
 
 
 ## After the ending, helping more blobs can raise the bloom level: more flowers, more colour.
@@ -734,9 +775,7 @@ func _raise_bloom(at: Vector2) -> void:
 	var level := bloom_level()
 	if level <= bloom.level:
 		return
-	bloom.set_level(level, at)
-	ColorBloom.Burst.spawn(at, level, get_tree())
-	_update_grading(true)
+	_play_color_animation(level, at)
 	hud.show_message("O mundo ganhou mais cor.", 4.0)
 	var lines := {
 		2: "Sentes? Cada blob que ouves deixa o mundo mais vivo.",
@@ -750,7 +789,7 @@ func _raise_bloom(at: Vector2) -> void:
 func _update_grading(animate: bool) -> void:
 	grading.set_extras(_area_full_vector(), _bloom_strength(bloom.level) if _game.is_vassal_freed("K") else 0.0, animate, 4.0)
 	if _game.is_vassal_freed("K"):
-		grading.set_state(1.0, 1.0, 1.0, 1.05 + 0.04 * bloom.level, animate)
+		grading.set_state(1.0, 1.0, 1.0, 1.05 + [0.0, 0.0, 0.04, 0.06, 0.14][bloom.level], animate)
 		return
 	var c := 1.0 if _game.is_vassal_freed("C") else 0.0
 	var m := 1.0 if _game.is_vassal_freed("M") else 0.0
@@ -1027,11 +1066,9 @@ func _celebrate(level: int) -> void:
 	timer.timeout.connect(func() -> void:
 		if celebration != _celebration_id:
 			return  # a newer ending (debug) replaced this one
-		ColorBloom.Burst.spawn(origin, level, get_tree())
-		bloom.set_level(level, origin)
-		_update_grading(true)
+		_play_color_animation(level, origin)
 		hud.show_message("A cor voltou ao mundo.", 5.0))
-	var talk := get_tree().create_timer(5.0)
+	var talk := get_tree().create_timer(10.5 if level == 4 else 5.5)
 	talk.timeout.connect(func() -> void:
 		if celebration != _celebration_id:
 			return
@@ -1234,7 +1271,9 @@ func debug_ending(level: int) -> void:
 		_game.mark_dialogue("meet_" + _game.AREA_VASSAL[area])
 	current_region = "hub"
 	dialogue.clear()
-	debug_teleport("hub", "center")
+	# Just below K (as in the real ending, where you end up beside it), so both are in view.
+	player.global_position = K_REST + Vector2(0, 140)
+	player.velocity = Vector2.ZERO
 	if _game.is_vassal_freed("K"):
 		_celebrate(level)
 	else:

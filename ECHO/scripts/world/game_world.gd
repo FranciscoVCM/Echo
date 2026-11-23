@@ -9,6 +9,8 @@ const PAUSE_SCRIPT: Script = preload("res://scripts/ui/pause_menu.gd")
 const DEBUG_SCRIPT: Script = preload("res://scripts/ui/debug_panel.gd")
 ## K is the black ink: once it is back, the Nascente turns deep black.
 const BLACK_NASCENTE := Color(0.11, 0.11, 0.13)
+## Where K rests at the end: the top of the sanctum (where the touch stage happens).
+const K_REST := Vector2(0, -150)
 const VASSAL_COLORS := {"C": Color(0.1, 0.85, 0.95), "M": Color(0.95, 0.22, 0.66), "Y": Color(1.0, 0.9, 0.15)}
 
 var geometry: WorldGeometry
@@ -58,6 +60,9 @@ var _set_piece_spots: Array = []
 var _finale_gates: Array[MembraneGate] = []
 ## DEBUG: shows a given bloom level regardless of how many blobs were helped (-1 = real).
 var _bloom_override := -1
+## While the ending plays (explosion + K's words), no other dialogue may cut in.
+var _ending_lock := false
+var _celebration_id := 0
 
 
 func _ready() -> void:
@@ -390,7 +395,7 @@ func _spawn_k() -> void:
 	# K is never seen until it reveals itself during the finale.
 	k_body.visible = _game.is_vassal_freed("K")
 	if _game.is_vassal_freed("K"):
-		k_body.position = Vector2(0, 0)
+		k_body.position = K_REST
 		k_body.radius = 80.0
 		k_body.completed = true
 		k_body.awake = true
@@ -757,6 +762,8 @@ func _update_grading(animate: bool) -> void:
 
 ## K is only a voice ("Voz") until it reveals itself at the very end.
 func say(lines: Array, speaker: String = "K", sequence_id: String = "") -> void:
+	if _ending_lock and sequence_id != "ending":
+		return
 	var revealed: bool = _final_stage >= 2 or _game.is_vassal_freed("K")
 	var voice := "K" if revealed else "Voz"
 	var mapped: Array = []
@@ -769,7 +776,7 @@ func say(lines: Array, speaker: String = "K", sequence_id: String = "") -> void:
 
 
 func _say_once(key: String, lines: Array, speaker: String = "K") -> void:
-	if _game.dialogue_seen(key):
+	if _game.dialogue_seen(key) or _ending_lock:
 		return
 	_game.mark_dialogue(key)
 	say(lines, speaker, key)
@@ -1000,19 +1007,35 @@ func _complete_game() -> void:
 	_celebrate(bloom_level())
 
 
+## K always ends at the top of the sanctum (also when the ending is reached from the debug).
+func _place_k_at_rest() -> void:
+	k_body.stop_glide()
+	k_body.global_position = K_REST
+
+
 ## The colour explosion: bigger (rings, sparks, flowers, saturation) the more blobs were
 ## helped along the journey. Then K's closing words, which mention it.
 func _celebrate(level: int) -> void:
+	_place_k_at_rest()
+	dialogue.clear()
+	_ending_lock = true
+	_celebration_id += 1
+	var celebration := _celebration_id
 	var origin := k_body.global_position
 	bloom.set_level(0)
 	var timer := get_tree().create_timer(1.6)
 	timer.timeout.connect(func() -> void:
+		if celebration != _celebration_id:
+			return  # a newer ending (debug) replaced this one
 		ColorBloom.Burst.spawn(origin, level, get_tree())
 		bloom.set_level(level, origin)
 		_update_grading(true)
 		hud.show_message("A cor voltou ao mundo.", 5.0))
 	var talk := get_tree().create_timer(5.0)
 	talk.timeout.connect(func() -> void:
+		if celebration != _celebration_id:
+			return
+		dialogue.clear()
 		var totals := blob_totals()
 		say(ElderSpeech.lines(_game.progress, totals.x, totals.y, level), "K", "ending"))
 	if not dialogue.finished.is_connected(_on_ending_dialogue):
@@ -1021,6 +1044,7 @@ func _celebrate(level: int) -> void:
 
 func _on_ending_dialogue(sequence: String) -> void:
 	if sequence == "ending":
+		_ending_lock = false
 		var ending := ENDING_SCRIPT.new() as CanvasLayer
 		ending.set("world", self)
 		add_child(ending)
@@ -1122,6 +1146,14 @@ func debug_finish_clearing() -> void:
 		if not blob.is_freed():
 			blob.set_dormant(false)
 			blob.free_blob()
+	# Skipping the tutorial: its speeches and the guide light are no longer relevant.
+	for key in ["intro", "first_ping", "clearing_done"]:
+		_game.mark_dialogue(key)
+	_intro_running = false
+	emitter.input_enabled = true
+	if companion.marker != null:
+		companion.marker.visible = false
+	dialogue.clear()
 	debug_teleport("hub", "test_start")
 
 
@@ -1194,6 +1226,13 @@ func debug_ending(level: int) -> void:
 		debug_free_vassal(letter)
 	for blob in _final_fragments:
 		blob.set_dormant(true)
+	# Arrival speeches (Nascente, areas, vassals) would otherwise play over the ending.
+	for key in ["hub_first", "vista_intro", "som_intro", "tato_intro", "vassal_intro"]:
+		_game.mark_dialogue(key)
+	for area in _game.AREAS:
+		_game.mark_dialogue("asleep_" + area)
+		_game.mark_dialogue("meet_" + _game.AREA_VASSAL[area])
+	current_region = "hub"
 	dialogue.clear()
 	debug_teleport("hub", "center")
 	if _game.is_vassal_freed("K"):

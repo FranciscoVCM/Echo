@@ -26,7 +26,8 @@
 - **K finale reordered so touch is the climax:** fragments in the dark (sight) → K's song (hearing) → trio with one wave → spikes: come close slowly and stay (touch) → **a final soft, close ping** (a faint circle shows how close) → ending. The old silence stage was removed.
 - **K collision check:** the test now probes the middle of the sanctum during the trio (no collider at K's/fragments' old spots) and walks the player straight through it. Passes.
 - **DEBUG (F8):** per area "normal" (just enough blobs + vassal) and "completa" (every blob + vassal); ending levels 1–4 (frees blobs up to the level; a lower level than what is already helped is forced for comparison).
-- Tests: `world_tests` **233 checks, 0 failures**; UI smoke OK. New `tests/capture_colour.tscn` (windowed) screenshots vassal states, full-area colour and ending levels 1/4.
+- **Fix (debug ending):** while the ending plays (explosion + K's words) no other dialogue can cut in (tutorial, Nascente arrival, areas, vassals); debug jumps skip the tutorial and arrival speeches properly (guide light hidden, ping unlocked). K always ends at the **top of the sanctum** (`GameWorld.K_REST`, where the touch stage happens), also when loading a finished save; a K still gliding to the centre is stopped first.
+- Tests: `world_tests` **237 checks, 0 failures** (incl. debug ending straight from the Clareira intro: only K's closing lines are spoken, K at the top); UI smoke OK. New `tests/capture_colour.tscn` (windowed) screenshots vassal states, full-area colour and ending levels 1/4.
 
 ## 2026-11-23 (9) — Replay test fixes before showing the group
 

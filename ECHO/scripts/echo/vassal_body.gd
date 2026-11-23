@@ -199,10 +199,19 @@ func hum_melody() -> void:
 	_sing_timer = 0.0
 
 
+var _glide: Tween
+
+
 func glide_to(target: Vector2, duration: float = 1.5) -> Tween:
-	var tween := create_tween()
-	tween.tween_property(self, "global_position", target, duration).set_trans(Tween.TRANS_SINE)
-	return tween
+	stop_glide()
+	_glide = create_tween()
+	_glide.tween_property(self, "global_position", target, duration).set_trans(Tween.TRANS_SINE)
+	return _glide
+
+
+func stop_glide() -> void:
+	if _glide != null and _glide.is_valid():
+		_glide.kill()
 
 
 func set_fov_visible(is_in_view: bool) -> void:

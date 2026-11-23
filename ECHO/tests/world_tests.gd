@@ -372,6 +372,30 @@ func test_debug_endings() -> void:
 	await wait(2.5)
 	var totals := world.blob_totals()
 	check(world.bloom.level == 4 and totals.x == totals.y, "debug: ending level 4 = every blob helped (%d/%d)" % [totals.x, totals.y])
+	# From the very start of the Clareira (intro speech running): only the ending may speak.
+	world.queue_free()
+	await frames(3)
+	await _load_world()
+	check(world.intro_running(), "fresh world starts with the intro speech")
+	world.debug_ending(2)
+	var said_from: int = world.dialogue.history.size()
+	await wait(1.0)
+	check(world.k_body.global_position.distance_to(GameWorld.K_REST) < 1.0, "K ends at the top of the sanctum (%s)" % world.k_body.global_position)
+	await wait(5.0)
+	for index in range(30):
+		world.dialogue._finish_line()
+		await frames(3)
+	var totals_now := world.blob_totals()
+	var ending_texts := {}
+	for line in ElderSpeech.lines(game.progress, totals_now.x, totals_now.y, 2):
+		ending_texts[str(line[1])] = true
+	var said: Array = world.dialogue.history.slice(said_from)
+	var foreign: Array[String] = []
+	for entry in said:
+		if not ending_texts.has(str(entry[1])):
+			foreign.append(str(entry[1]))
+	check(said.size() >= 8 and foreign.is_empty(), "debug ending from the Clareira: only K's closing words are spoken (%d lines, other: %s)" % [said.size(), foreign])
+	check(world.k_body.global_position.distance_to(GameWorld.K_REST) < 1.0, "K stays at the top during the ending")
 
 
 func skip_dialogue() -> void:

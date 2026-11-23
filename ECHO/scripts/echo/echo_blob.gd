@@ -54,7 +54,7 @@ const PROXIMITY_CLOSE := 130.0
 
 @export_category("Voice")
 @export_range(2.0, 30.0, 0.5) var call_interval := 7.0
-@export_range(-40.0, 6.0, 1.0) var voice_volume_db := -12.0
+@export_range(-40.0, 6.0, 1.0) var voice_volume_db := -19.0
 @export_range(80.0, 600.0, 10.0) var answer_range := 260.0
 
 ## Shared references / options set by the world.
@@ -169,7 +169,7 @@ func _process_lost(delta: float) -> void:
 		if need == Need.MELODY:
 			_sing_melody()
 		else:
-			_play_voice(note, 0.0 if singer else -6.0)
+			_play_voice(note, -3.0 if singer else -7.0)
 	match need:
 		Need.STIMULATED:
 			if _stim_remaining > 0.0:
@@ -296,10 +296,12 @@ func _on_lost_ping(wave: PingWave, matched: bool) -> void:
 		_answer()
 		return
 	if not matched:
-		if need == Need.MELODY and _melody_step > 0:
-			_melody_step = 0
-			droop()
-			_sing_melody()
+		if need == Need.MELODY:
+			# Keep the progress; it just sings the note it is waiting for.
+			has_answered = true
+			_jolt = 0.6
+			_add_stat("wrong_notes")
+			_play_voice(_expected_note(), 0.0)
 		else:
 			_answer()
 		return
@@ -613,7 +615,7 @@ func _draw_progress(shown: Color) -> void:
 		for index in range(pip_total):
 			var at := Vector2(start + spacing * index, -body_radius - 12.0)
 			var pip_color := shown.lightened(0.4)
-			if need == Need.MELODY and not grey:
+			if need == Need.MELODY and (not grey or index < pip_done):
 				pip_color = EchoNotes.color_for(melody[index])
 			if index < pip_done:
 				draw_circle(at, 4.0, pip_color)

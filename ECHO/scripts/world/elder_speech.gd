@@ -20,7 +20,7 @@ static func lines(progress: Dictionary) -> Array:
 		["K", "...Aqui estou. Sem pedaços em falta."],
 		["K", "Eu sou a K. A cor mais escura, a que dá forma a todas as outras."],
 		["K", "Quando deixámos de nos ouvir uns aos outros, fechei-me. E as cores foram-se comigo."],
-		["K", "Também eu fui guardiã, como as outras três. Já não guardo nenhum lugar... só o que fui aprendendo."],
+		["K", "Também eu fui vassala, como as outras três. Já não guardo nenhum lugar... só o que fui aprendendo."],
 		["K", "Fui eu que te guiei. Mas fui também uma das que precisava de ser encontrada."],
 	]
 	if not areas.is_empty() and area_names.has(areas[0]):

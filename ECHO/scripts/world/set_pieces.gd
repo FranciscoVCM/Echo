@@ -34,7 +34,8 @@ static func for_area(area: String) -> Array:
 				], {"grey": true, "singer": true}),
 				chorus("som:sp:chorus", area, Vector2(820, -2120), 150.0, 5, {"grey": true, "singer": true}),
 				lake("som:sp:lake", area, [
-					{"pos": [560, -3060], "need": "MELODY", "note": 4, "melody": [4, 6, 1], "grey": true, "singer": true},
+					{"pos": [500, -3070], "need": "SHY", "note": 4, "shy_silence": 5.0, "grey": true, "singer": true},
+					{"pos": [630, -3040], "need": "STIMULATED", "note": 6, "hits": 3, "stim_window": 10.0, "grey": true, "singer": true},
 				]),
 			]
 		"tato":

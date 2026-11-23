@@ -12,6 +12,18 @@
 
 ---
 
+## 2026-11-23 (4) — Playtest notes (Valley)
+
+- Audio: creature calls/answers much quieter (-7 dB), vassals and stones quieter, the player's own ping preview louder (+5 dB).
+- Wording: "blobs" everywhere instead of "criaturas"; "vassalo" instead of "guardião".
+- Removed K's directional idle hints entirely.
+- Melodies (creatures and vassals) no longer reset on a wrong note: progress is kept and the creature sings the note it is waiting for; grey melody pips reveal the colour of notes already answered. C hums its song regularly so you can listen again. Valley PCG only uses 2-note melodies.
+- Valley lake: the 3-note melody is gone; now a shy blob and an anxious one on the water (pinging the anxious one can startle the shy one while it is calming down).
+- K gives a first-sight nudge for PCG groups too (cluster: each wants its own note, any order; same colour: one wave).
+- Tests: 176 checks, 0 failures.
+
+---
+
 ## 2026-11-23 (3) — Playtest notes: wording, guardians, light, spacing
 
 - West nook (shy, top-left of the Clareira) is roomier; the Mi guide light is closer to the pond.

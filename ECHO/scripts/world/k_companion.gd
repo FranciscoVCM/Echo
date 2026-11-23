@@ -23,7 +23,7 @@ var _idle := 0.0
 var steps := [
 	{"id": "fa", "blobs": ["clearing:fa"], "go": "Vês aquela luz no chão? Vai até lá.", "phases": [
 		["g_fa", "explain_fa", [
-			"Vês aquela criatura? Está verde... e o verde é Fá.",
+			"Vês aquela blob? Está verde... e o verde é Fá.",
 			"Escolhe a nota com %NOTES%. Se lhe chamares com a nota errada, ela responde com a sua: ouve-a, e depois responde-lhe.",
 		]],
 	]},
@@ -88,8 +88,6 @@ func _process(delta: float) -> void:
 	_idle += delta
 	if not game.progress["clearing_done"]:
 		_update_guide()
-	elif _idle > IDLE_HINT_SECONDS and not world.dialogue.is_busy():
-		_idle_hint()
 
 
 func note_progress() -> void:
@@ -209,14 +207,14 @@ func on_vassal_awake(_letter: String, area: String) -> void:
 	note_progress()
 	world.say_once("awake_" + area, [
 		"Ajudaste blobs suficientes em %s. Não precisas de encontrar todas." % world.region_title(area),
-		"O guardião desta zona acordou, lá no fundo. Ficou sozinho muito tempo... vai ter com ele quando quiseres.",
+		"O vassalo desta zona acordou, lá no fundo. Ficou sozinho muito tempo... vai ter com ele quando quiseres.",
 	])
 
 
 ## Called by the world when the player comes near a guardian that is still asleep.
 func on_near_sleeping_vassal(area: String) -> void:
 	world.say_once("asleep_" + area, [
-		"Este é o guardião desta zona. Está adormecido.",
+		"Este é o vassalo desta zona. Está adormecido.",
 		"Vai acordar quando tiveres ajudado blobs suficientes por aqui: %d de %d." % [world.area_needed(area), world.area_total(area)],
 	])
 
@@ -231,7 +229,7 @@ func on_vassal_completed(letter: String) -> void:
 	var color_word := {"Y": "o amarelo", "C": "o ciano", "M": "o magenta"}
 	var lines: Array = [reflection[letter]]
 	if game.cmy_freed_count() == 1:
-		lines.append("Sentes? O mundo ficou menos escuro... e %s voltou. Cada guardião guardava uma das cores do mundo." % color_word[letter])
+		lines.append("Sentes? O mundo ficou menos escuro... e %s voltou. Cada vassalo guardava uma das cores do mundo." % color_word[letter])
 	else:
 		lines.append("E %s voltou ao mundo." % color_word[letter])
 	var remaining: Array[String] = []
@@ -240,9 +238,9 @@ func on_vassal_completed(letter: String) -> void:
 		if not game.is_vassal_freed(other) and other != letter:
 			remaining.append(places[other])
 	if remaining.size() == 2:
-		lines.append("Esta zona já está em paz. Ainda há guardiões à espera em %s e %s. As blobs que faltam aqui podem esperar, se quiseres." % [remaining[0], remaining[1]])
+		lines.append("Esta zona já está em paz. Ainda há vassalos à espera em %s e %s. As blobs que faltam aqui podem esperar, se quiseres." % [remaining[0], remaining[1]])
 	elif remaining.size() == 1:
-		lines.append("Só falta um guardião, em %s." % remaining[0])
+		lines.append("Só falta um vassalo, em %s." % remaining[0])
 	world.say(lines)
 	_flush_pending_chords()
 
@@ -285,6 +283,8 @@ func on_near_set_piece(pattern: String) -> void:
 		"neighbours": ["Duas vizinhas que precisam de coisas muito diferentes.", "Talvez a ordem importe. E onde estás quando chamas."],
 		"lake": ["Não consegues chegar perto destas. Só a tua voz atravessa a água."],
 		"current": ["Do outro lado da corrente há uma blob desconfiada. Entrar a correr pode não ser boa ideia."],
+		"cluster": ["Estas estão juntas, mas cada uma quer a sua própria nota.", "Só se soltam quando todas tiverem ouvido a sua. A ordem não importa."],
+		"same_wave": ["Da mesma cor, e separadas. Lembras-te do par da Clareira? Uma só onda que chegue a todas."],
 	}
 	if nudges.has(pattern):
 		world.say_once("near_sp_" + pattern, nudges[pattern])

@@ -34,7 +34,7 @@ func receive_ping_wave(wave: PingWave) -> void:
 	_ring = 1.0
 	_voice.stream = EchoNotes.voice_stream(note)
 	_voice.pitch_scale = 0.5
-	_voice.volume_db = -4.0
+	_voice.volume_db = -9.0
 	_voice.play()
 
 

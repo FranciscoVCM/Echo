@@ -60,7 +60,7 @@ func _ready() -> void:
 	column.add_child(fullscreen)
 
 	var names := CheckBox.new()
-	names.text = "Mostrar sempre o nome das notas por baixo das criaturas (acessibilidade)"
+	names.text = "Mostrar sempre o nome das notas por baixo das blobs (acessibilidade)"
 	names.button_pressed = bool(game.settings["note_names_always"])
 	names.toggled.connect(func(on: bool) -> void:
 		game.settings["note_names_always"] = on

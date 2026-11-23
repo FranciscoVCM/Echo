@@ -105,7 +105,7 @@ func _ready() -> void:
 		_intro_running = true
 		_say_once("intro", [
 			"...Olá, pequena. Consegues ouvir-me?",
-			"Este mundo perdeu a cor. E as criaturas perderam-se umas das outras.",
+			"Este mundo perdeu a cor. E as blobs perderam-se umas das outras.",
 			"Mexe-te com %s %s %s %s. Para chamar, mantém %s e larga: é o teu ping." % [_key("echo_up"), _key("echo_left"), _key("echo_down"), _key("echo_right"), _key("echo_ping")],
 		])
 	elif _game.progress["clearing_done"]:
@@ -168,6 +168,9 @@ func _spawn_player() -> void:
 	camera.make_current()
 	emitter = player.get_node("PingEmitter") as PingEmitter
 	emitter.tone_count = 7
+	var preview := emitter.get_node_or_null("TonePreview") as AudioStreamPlayer
+	if preview != null:
+		preview.volume_db = 5.0  # your own voice should stand out over the world's
 	player.collision_mask = 2 | 1 | WorldGeometry.WATER_LAYER
 	# A longer dash than the lab default: currents are crossed with it.
 	player.max_dash_speed = 1000.0
@@ -253,6 +256,11 @@ func _p(point: Vector2) -> Array:
 
 func _spawn_area(area: String, specs: Array) -> void:
 	for spec in specs:
+		if spec.get("group", "") in ["cluster", "same_wave"]:
+			var center := Vector2.ZERO
+			for data in spec["blobs"]:
+				center += Vector2(data["pos"][0], data["pos"][1])
+			_set_piece_spots.append([spec["group"], center / spec["blobs"].size(), area])
 		for blob in EncounterSpawner.spawn(spec, _creatures, geometry):
 			_register_blob(blob, area)
 	fov.set_world_segments(geometry.segments)
@@ -379,7 +387,7 @@ func _enter_region(region: String) -> void:
 				])
 			"som":
 				_say_once("som_intro", [
-					"O Vale dos Ecos. Aqui as criaturas perderam a cor... mas não a voz.",
+					"O Vale dos Ecos. Aqui as blobs perderam a cor... mas não a voz.",
 					"Ouve bem o que cantam. Compara com as tuas notas antes de responder.",
 				])
 			"tato":
@@ -390,7 +398,7 @@ func _enter_region(region: String) -> void:
 	elif region == "hub" and _game.progress["clearing_done"]:
 		_say_once("hub_first", [
 			"Esta é a Nascente. Daqui saem três caminhos: as Grutas a oeste, o Vale a norte, o Bosque a este.",
-			"Em cada lugar há muitas blobs perdidas... e um guardião adormecido.",
+			"Em cada lugar há muitas blobs perdidas... e um vassalo adormecido.",
 			"Vai pela ordem que quiseres. Entra e sai quando quiseres.",
 		])
 
@@ -477,7 +485,7 @@ func _update_status() -> void:
 				freed += 1
 		lines.append("Blobs ajudadas: %d / %d" % [freed, _area_blobs[current_region].size()])
 		if current_region in _game.AREAS and not vassals[_game.AREA_VASSAL[current_region]].awake:
-			lines.append("O guardião acorda aos %d" % area_needed(current_region))
+			lines.append("O vassalo acorda aos %d" % area_needed(current_region))
 	# The colours are only mentioned once the first guardian has given one back.
 	if _game.cmy_freed_count() > 0:
 		var cmy: Array[String] = []
@@ -508,7 +516,7 @@ func _apply_tone() -> void:
 func _toggle_chord() -> void:
 	var pc := EchoNotes.pitch_class(emitter.ping_tone_index)
 	if _game.unlocked_chords().is_empty():
-		hud.show_message("Ainda não conheces acordes: ajuda 5 criaturas da mesma nota.", 3.0)
+		hud.show_message("Ainda não conheces acordes: ajuda 5 blobs da mesma nota.", 3.0)
 		return
 	if not _game.is_chord_unlocked(pc):
 		var known: Array[String] = []
@@ -806,7 +814,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		EchoBlob.always_show_note_names = not EchoBlob.always_show_note_names
 		_game.settings["note_names_always"] = EchoBlob.always_show_note_names
 		_game.save_settings()
-		hud.show_message("Nomes das notas: " + ("sempre visíveis" if EchoBlob.always_show_note_names else "só quando a criatura responde"), 2.5)
+		hud.show_message("Nomes das notas: " + ("sempre visíveis" if EchoBlob.always_show_note_names else "só quando a blob responde"), 2.5)
 	elif event.is_action_pressed("echo_pause"):
 		_pause_menu.call("open")
 	elif event is InputEventKey and event.pressed and not event.echo:
@@ -831,7 +839,7 @@ func _debug_free_current_area() -> void:
 	for blob in _area_blobs[area]:
 		if not blob.is_freed():
 			blob.free_blob()
-	hud.show_message("[TESTE] Todas as criaturas de %s ajudadas." % _region_title(area), 2.5)
+	hud.show_message("[TESTE] Todas as blobs de %s ajudadas." % _region_title(area), 2.5)
 
 
 func _debug_travel() -> void:

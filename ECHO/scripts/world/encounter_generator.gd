@@ -20,7 +20,7 @@ const POOLS := {
 		"same_wave_trio": 1.0, "cluster": 1.5, "stimulated": 1.0, "hidden_stimulated": 1.0,
 	},
 	"som": {
-		"note": 3.0, "shy": 2.0, "melody2": 2.0, "melody3": 1.0, "same_wave_pair": 2.0,
+		"note": 3.0, "shy": 2.0, "melody2": 1.5, "same_wave_pair": 2.0,
 		"stimulated": 1.0, "cluster2": 1.0,
 	},
 	"tato": {

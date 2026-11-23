@@ -60,7 +60,7 @@ func _ready() -> void:
 	_voice = AudioStreamPlayer2D.new()
 	_voice.max_distance = 1500.0
 	_voice.attenuation = 1.3
-	_voice.volume_db = -6.0
+	_voice.volume_db = -11.0
 	add_child(_voice)
 
 
@@ -85,10 +85,10 @@ func receive_ping_wave(wave: PingWave) -> void:
 				if melody_step >= melody.size():
 					_finish_mode()
 			else:
-				if melody_step > 0:
-					_droop = 1.0
-				melody_step = 0
-				_hum_timer = 1.2
+				# Keep the progress; it hums the note it is waiting for.
+				_jolt = 0.5
+				sing(melody[melody_step], 0.0)
+				_hum_timer = hum_interval
 		Mode.SILENCE:
 			silence_remaining = silence_duration
 			_jolt = 1.0
@@ -147,7 +147,7 @@ func _finish_mode() -> void:
 
 func sing(degree: int, volume_offset: float = 0.0) -> void:
 	_voice.stream = EchoNotes.voice_stream(degree)
-	_voice.volume_db = -6.0 + volume_offset
+	_voice.volume_db = -11.0 + volume_offset
 	_voice.pitch_scale = 0.5
 	_voice.play()
 	_jolt = maxf(_jolt, 0.25)
@@ -189,7 +189,7 @@ func _process(delta: float) -> void:
 	_droop = move_toward(_droop, 0.0, delta * 0.8)
 	if mode == Mode.MELODY and awake:
 		_hum_timer -= delta
-		if _hum_timer <= 0.0 and melody_step == 0:
+		if _hum_timer <= 0.0:
 			_hum_timer = hum_interval
 			hum_melody()
 	if mode == Mode.SILENCE:

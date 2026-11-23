@@ -39,10 +39,16 @@ func wake() -> void:
 		blob.freed.connect(_on_spark_freed)
 		if blob.is_freed():
 			_on_spark_freed.call_deferred(blob)
-	world.say([
-		"(Uma luz fraca treme ao fundo da gruta... e foge quando te aproximas.)",
-		["K", "A Y tem vergonha de ser vista sem a sua luz. Partiu-se em três faíscas, escondidas aqui no escuro."],
-	], "Y", "y_wake")
+
+
+
+## Said by K when you first come close to this vassal after it woke up.
+func meet_lines() -> Array:
+	return [
+		["Y", "(Uma luz fraca treme... e foge quando te aproximas.)"],
+		["K", "Esta vassala tem vergonha de ser vista sem a sua luz. Foge sempre que chegas perto."],
+		["K", "A luz dela partiu-se em três faíscas, escondidas aqui no escuro. Só um ping as revela. Ajuda-as, e elas voltam para ela."],
+	]
 
 
 func light_radius() -> float:

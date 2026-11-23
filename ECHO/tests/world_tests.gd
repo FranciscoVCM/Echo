@@ -218,6 +218,11 @@ func _test_full_playthrough() -> void:
 		await wait(0.5)
 		var letter: String = game.AREA_VASSAL[area]
 		check(world.vassals[letter].awake, "vassal %s woke up after the area was completed" % letter)
+		skip_dialogue()
+		world.player.global_position = spot_near(world.vassals[letter].global_position, 400.0)
+		await frames(10)
+		check(game.dialogue_seen("meet_" + letter), "arriving at the awake vassal %s, K explains its challenge" % letter)
+		skip_dialogue()
 		var history_before: int = world.dialogue.history.size()
 		await solve_vassal(letter)
 		check(game.is_vassal_freed(letter), "vassal %s freed" % letter)

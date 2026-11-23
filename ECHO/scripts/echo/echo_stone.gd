@@ -28,8 +28,12 @@ func receive_ping(_source: Vector2, _is_echo: bool) -> void:
 	pass
 
 
+const RING_DISTANCE := 230.0
+
+
 func receive_ping_wave(wave: PingWave) -> void:
-	if wave.is_echo():
+	# Only when you call right next to it, so it doesn't ring every time you call the vassal.
+	if wave.is_echo() or wave.global_position.distance_to(global_position) > RING_DISTANCE:
 		return
 	_ring = 1.0
 	_voice.stream = EchoNotes.voice_stream(note)
@@ -54,6 +58,11 @@ func _draw() -> void:
 	draw_rect(Rect2(rect.position + Vector2(0, 4), rect.size), Color(0, 0, 0, 0.25))
 	draw_rect(rect, color.darkened(0.35))
 	draw_rect(rect, color.lightened(0.1), false, 2.0)
+	var font := ThemeDB.fallback_font
+	var name := EchoNotes.name_for(note)
+	var width := font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+	draw_string_outline(font, Vector2(-width * 0.5, 50), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, 4, Color(0, 0, 0, 0.85))
+	draw_string(font, Vector2(-width * 0.5, 50), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, color.lightened(0.4))
 	if _ring > 0.0:
 		for index in range(3):
 			var r := 30.0 + (1.0 - _ring) * 60.0 + index * 12.0

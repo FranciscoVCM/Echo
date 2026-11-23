@@ -40,10 +40,16 @@ func wake() -> void:
 	if awake or completed:
 		return
 	awake = true
-	world.say([
+
+
+
+## Said by K when you first come close to this vassal after it woke up.
+func meet_lines() -> Array:
+	return [
 		["M", "(Espinhos. Um corpo enrolado que estremece com cada passo teu.)"],
-		["K", "A M tem medo do toque. Não a apresses."],
-	], "M", "m_wake")
+		["K", "Esta vassala tem medo do toque. Se chegares depressa, ou se gritares, os espinhos crescem e ela foge."],
+		["K", "Aproxima-te devagar, com %SLOW%. Fica perto dela até acalmar. Depois... um toque leve."],
+	]
 
 
 func _physics_process(delta: float) -> void:

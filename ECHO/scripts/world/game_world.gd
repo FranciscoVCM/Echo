@@ -665,6 +665,12 @@ func _update_proximity_comments() -> void:
 	if not vassal.awake and not vassal.completed and vassal.global_position.distance_to(position) < 520.0:
 		companion.on_near_sleeping_vassal(current_region)
 		return
+	if vassal.awake and not vassal.completed and vassal.global_position.distance_to(position) < 650.0:
+		var lines: Array = []
+		for line in vassal.call("meet_lines"):
+			lines.append([line[0], str(line[1]).replace("%SLOW%", _key("echo_slow"))])
+		_say_once("meet_" + letter, lines)
+		return
 	for spot in _set_piece_spots:
 		if spot[2] == current_region and (spot[1] as Vector2).distance_to(position) < 360.0:
 			companion.on_near_set_piece(spot[0])
@@ -673,6 +679,7 @@ func _update_proximity_comments() -> void:
 
 ## If you stay stuck near an awake vassal, K offers a gentle hint, then a clearer one.
 func _update_vassal_hints(delta: float) -> void:
+	EchoBlob.hush = in_themed_challenge()
 	var active := ""
 	for letter in vassals:
 		var vassal: VassalBody = vassals[letter]

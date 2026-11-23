@@ -59,6 +59,8 @@ const PROXIMITY_CLOSE := 130.0
 
 ## Shared references / options set by the world.
 static var always_show_note_names := false
+## True during a vassal challenge: other blobs stop calling so you can listen.
+static var hush := false
 static var player: Node2D
 
 ## 0..1: how attuned the player is to this blob's area (set by the world). Higher = easier.
@@ -150,7 +152,7 @@ func _process(delta: float) -> void:
 				free_blob()
 		State.FREED:
 			_call_timer -= delta
-			if _call_timer <= 0.0:
+			if _call_timer <= 0.0 and not hush:
 				_call_timer = randf_range(9.0, 16.0)
 				_play_voice(note, -12.0)
 	_apply_look()
@@ -163,7 +165,7 @@ func _process_lost(delta: float) -> void:
 		return
 	var interval := call_interval * lerpf(1.0, 0.5, ease) if singer else call_interval
 	_call_timer -= delta
-	if _call_timer <= 0.0:
+	if _call_timer <= 0.0 and not hush:
 		_call_timer = interval * randf_range(0.85, 1.2)
 		_call_ring = 1.0
 		if need == Need.MELODY:

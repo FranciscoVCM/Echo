@@ -34,14 +34,22 @@ func wake() -> void:
 	for index in range(stone_positions.size()):
 		var stone := EchoStone.new()
 		stone.note = STONE_NOTES[index]
+		stone.colored = true  # the stones are the reference: colour + name shown
 		stone.position = stone_positions[index]
 		get_parent().add_child(stone)
 		stones.append(stone)
 	start_melody(PackedInt32Array(SONG))
-	world.say([
+
+
+
+## Said by K when you first come close to this vassal after it woke up.
+func meet_lines() -> Array:
+	return [
 		["C", "(Um zumbido partido... três notas, e depois silêncio.)"],
-		["K", "A C perdeu a voz. As pedras à volta ainda se lembram de como soa. Ouve-as."],
-	], "C", "c_wake")
+		["K", "Esta vassala perdeu a voz. Só consegue cantar três notas, baixinho, sem cor."],
+		["K", "As três pedras à volta lembram-se dos sons. Vai até uma e chama: ela toca a sua nota."],
+		["K", "Descobre que notas são as da canção, e devolve-lhas uma a uma, pela ordem em que ela as canta. Os pontos por cima dela mostram quantas já acertaste."],
+	]
 
 
 func _on_mode_completed(_mode: int) -> void:

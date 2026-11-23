@@ -28,7 +28,7 @@ func _ready() -> void:
 	title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
 	title.add_theme_constant_override("shadow_offset_y", 4)
 	column.add_child(title)
-	var subtitle := UiStyle.title("um jogo sobre ouvir", 18)
+	var subtitle := UiStyle.title("cada voz é uma cor", 18)
 	subtitle.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85))
 	column.add_child(subtitle)
 	column.add_child(Control.new())

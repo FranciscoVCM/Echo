@@ -40,6 +40,8 @@ var input_enabled := true
 var chord_tone_indices := PackedInt32Array()
 ## Optional colours drawn by the wave for each extra chord tone.
 var chord_colors: Array[Color] = []
+## Range multiplier while a chord is set (a chord "splits" the voice). 1.0 = no penalty.
+var chord_range_factor := 1.0
 
 var ping_charging := false
 var ping_charge := 0.0
@@ -118,6 +120,8 @@ func _physics_process(delta: float) -> void:
 	elif not e_pressed and _e_was_pressed and ping_charging:
 		var released_charge := ping_charge
 		var released_range := lerpf(minimum_ping_range, maximum_ping_range, released_charge)
+		if not chord_tone_indices.is_empty():
+			released_range *= chord_range_factor
 		ping_charging = false
 		ping_charge = 0.0
 		emit_ping(false, released_range, released_charge)

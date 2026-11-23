@@ -628,9 +628,11 @@ func _draw_progress(shown: Color) -> void:
 		_draw_small_text("%.0f s" % ceilf(_stim_remaining), Vector2(0, -body_radius - 26.0), Color(1, 0.9, 0.6, 0.9))
 	if need == Need.WARMTH:
 		if _warm:
-			_draw_meter(1.0, Color(1.0, 0.7, 0.75))
+			# Warm now: a pulsing ring in its own colour = "call me".
+			var pulse := 0.5 + 0.5 * sin(_time * 4.0)
+			draw_arc(Vector2.ZERO, body_radius + 10.0 + pulse * 4.0, 0.0, TAU, 48, Color(_true_color.lightened(0.3), 0.6 + 0.3 * pulse), 3.0, true)
 		elif _warmth > 0.0:
-			_draw_meter(_warmth, Color(1.0, 0.6, 0.55))
+			_draw_meter(_warmth, Color(1.0, 0.8, 0.45))
 			draw_arc(Vector2.ZERO, warmth_radius, 0.0, TAU, 48, Color(1.0, 0.6, 0.55, 0.12), 2.0, true)
 
 

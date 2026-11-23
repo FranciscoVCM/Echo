@@ -245,6 +245,10 @@ func _draw() -> void:
 	var width := font.get_string_size(letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
 	draw_string(font, shake + Vector2(-width * 0.5, radius * 0.62), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, letter_color)
 	match mode:
+		Mode.NOTE:
+			# Waiting to be called by a colour: a pulsing ring in that colour.
+			var pulse := 0.5 + 0.5 * sin(_time * 3.0)
+			draw_arc(Vector2.ZERO, radius + 14.0 + pulse * 6.0, 0.0, TAU, 64, Color(EchoNotes.color_for(wanted_note), 0.5 + 0.4 * pulse), 4.0, true)
 		Mode.MELODY:
 			var spacing := 16.0
 			var start := -spacing * (melody.size() - 1) * 0.5

@@ -187,6 +187,7 @@ func _spawn_player() -> void:
 	camera.make_current()
 	emitter = player.get_node("PingEmitter") as PingEmitter
 	emitter.tone_count = 7
+	emitter.chord_range_factor = 0.6  # chords carry three notes but reach less far
 	var preview := emitter.get_node_or_null("TonePreview") as AudioStreamPlayer
 	if preview != null:
 		preview.volume_db = 5.0  # your own voice should stand out over the world's
@@ -678,6 +679,12 @@ func _update_proximity_comments() -> void:
 			lines.append([line[0], str(line[1]).replace("%SLOW%", _key("echo_slow"))])
 		_say_once("meet_" + letter, lines)
 		return
+	for blob in _area_blobs[current_region]:
+		if blob.state == EchoBlob.State.LOST and not blob.dormant and blob.visible and blob.global_position.distance_to(position) < 330.0:
+			if not _game.dialogue_seen("need_%d" % blob.need):
+				companion.on_first_need(blob.need)
+				if dialogue.is_busy():
+					return
 	for spot in _set_piece_spots:
 		if spot[2] == current_region and (spot[1] as Vector2).distance_to(position) < 360.0:
 			companion.on_near_set_piece(spot[0])

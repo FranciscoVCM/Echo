@@ -12,6 +12,15 @@
 
 ---
 
+## 2026-11-23 (6) — Chord trade-off, first-sight explanations, clearer vassal Y
+
+- Chords now have a cost: a chord splits the voice and reaches ~60% as far as a single note (K explains it). So switching back to one note is a real choice (lakes, far blobs, pairs across rocks).
+- K explains each blob type the Clareira didn't teach the first time you see one: delicate, distrustful, cold (warmth ring then "call me" ring in its colour), lost from its nest, melody.
+- Y after its sparks return stays half lit and shows a pulsing ring in the colour it waits for (Mi/yellow), so it doesn't look already free. (Sparks no longer sit on top of Y - fixed earlier.)
+- Tests: 180 checks, 0 failures.
+
+---
+
 ## 2026-11-23 (5) — Vassal C redesign, colour return, debug panel
 
 (Francisco was playing an older running build; several earlier notes were already fixed.)

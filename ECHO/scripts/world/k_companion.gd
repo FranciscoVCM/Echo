@@ -270,10 +270,23 @@ func _explain_chord(pc: int) -> void:
 		world.say_once("first_chord", [
 			"Ajudaste cinco blobs de %s. Agora essa nota pode soar como um acorde: %s." % [EchoNotes.name_for(pc), EchoNotes.chord_name_for(pc)],
 			"Escolhe %s e carrega %s. O teu ping passa a levar %s ao mesmo tempo, e qualquer blob dessas cores o ouve." % [EchoNotes.name_for(pc), game.key_label("echo_chord"), names],
-			"Ninguém precisa de acordes... mas tornam muita coisa mais leve. Carrega %s outra vez para voltar a uma nota só." % game.key_label("echo_chord"),
+			"Mas um acorde divide a tua voz: chega menos longe do que uma nota só. Para chamar longe, volta a uma nota (%s outra vez)." % game.key_label("echo_chord"),
 		])
 	else:
 		world.say(["Também o teu %s pode ser acorde agora: %s (%s)." % [EchoNotes.name_for(pc), EchoNotes.chord_name_for(pc), names]])
+
+
+## First time you see each kind of blob the Clareira didn't teach: what is going on with it.
+func on_first_need(need: int) -> void:
+	var lines := {
+		EchoBlob.Need.GENTLE: ["Esta é delicada. Um ping forte assusta-a.", "Chama-a com um ping curto, e de perto. Os pontos mostram quantas vezes."],
+		EchoBlob.Need.CAUTIOUS: ["Esta é desconfiada. Se chegares a correr, foge.", "Aproxima-te devagar (%s) e só então chama-a, já de perto." % game.key_label("echo_slow")],
+		EchoBlob.Need.WARMTH: ["Esta tem frio. Fica perto dela um bocadinho: o anel enche enquanto aquece.", "Quando aquecer, vai querer ouvir a sua nota."],
+		EchoBlob.Need.PUSH: ["Esta perdeu-se do ninho: aquele círculo da cor dela.", "Encosta-te a ela e empurra-a com cuidado até lá."],
+		EchoBlob.Need.MELODY: ["Esta canta uma pequena melodia.", "Responde-lhe nota a nota, pela ordem. Os pontos mostram quantas já acertaste; se errares, ela canta-te a que falta."],
+	}
+	if lines.has(need):
+		world.say_once("need_%d" % need, lines[need])
 
 
 ## First time you come near each kind of advanced challenge: a nudge, never the answer.

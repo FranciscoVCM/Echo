@@ -377,6 +377,7 @@ func _spawn_k() -> void:
 	else:
 		k_body.position = geometry.region_data("clearing")["markers"]["k_start"]
 	_creatures.add_child(k_body)
+	k_body.collision_layer = 0
 	k_body.remove_from_group("ping_blobs")
 	k_body.mode_completed.connect(_on_k_mode_completed)
 
@@ -730,7 +731,7 @@ func _update_vassal_hints(delta: float) -> void:
 
 ## True while a guardian's challenge (or K's finale) is in progress around the player.
 func in_themed_challenge() -> bool:
-	if _final_stage >= 1 and _final_stage <= 4:
+	if _final_stage >= 1 and _final_stage <= 5:
 		return true
 	for letter in vassals:
 		var vassal: VassalBody = vassals[letter]
@@ -834,6 +835,12 @@ func _start_final_stage(stage: int) -> void:
 			k_body.start_melody(PackedInt32Array([5, 2, 0]))
 			say([["K", "Agora ouve a minha canção... e devolve-ma."]])
 		3:
+			say([
+				["K", "Antes de seguires... chega-te a mim. Devagar."],
+				["K", "Os espinhos crescem quando me apressam. Fica perto até eles baixarem."],
+			])
+			k_body.start_approach()
+		4:
 			say([["K", "Ninguém se encontra sozinho. Chama as três ao mesmo tempo."]])
 			for pillar in [Vector2(-95, -40), Vector2(95, -40)]:
 				geometry.add_dynamic_obstacle(WorldGeometry.noisy_ellipse(pillar, 34, 34, 0.15, 999, 16))
@@ -845,9 +852,9 @@ func _start_final_stage(stage: int) -> void:
 			]}
 			var blobs := EncounterSpawner.spawn(spec, _creatures, geometry)
 			_final_trio = blobs[0].group
-			_final_trio.resolved.connect(func(_g: EchoBlobGroup) -> void: _start_final_stage(4))
+			_final_trio.resolved.connect(func(_g: EchoBlobGroup) -> void: _start_final_stage(5))
 			k_body.global_position = Vector2(0, -235)  # out of the way of the trio and pillars
-		4:
+		5:
 			k_body.start_silence(6.0)
 			say([["K", "E agora... não digas nada. Só ouve."]])
 
@@ -862,12 +869,14 @@ func _on_final_fragment_freed(_blob: EchoBlob) -> void:
 func _on_k_mode_completed(mode: int) -> void:
 	if mode == VassalBody.Mode.MELODY and _final_stage == 2:
 		_start_final_stage(3)
-	elif mode == VassalBody.Mode.SILENCE and _final_stage == 4:
+	elif mode == VassalBody.Mode.APPROACH and _final_stage == 3:
+		_start_final_stage(4)
+	elif mode == VassalBody.Mode.SILENCE and _final_stage == 5:
 		_complete_game()
 
 
 func _complete_game() -> void:
-	_final_stage = 5
+	_final_stage = 6
 	for gate in _finale_gates:
 		if is_instance_valid(gate):
 			gate.open()

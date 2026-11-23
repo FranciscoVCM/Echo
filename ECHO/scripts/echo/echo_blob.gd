@@ -100,6 +100,8 @@ var _scared := 0.0
 var _emote := ""
 var _emote_time := 0.0
 var _flee_target := Vector2.ZERO
+## Seconds a pinged blob stays visible even in the dark (its echo).
+var _echo_reveal := 0.0
 var _fleeing := false
 var _voice: AudioStreamPlayer2D
 var _sing_queue: Array[int] = []
@@ -147,6 +149,7 @@ func _process(delta: float) -> void:
 	_scared = move_toward(_scared, 0.0, delta * 1.2)
 	_call_ring = move_toward(_call_ring, 0.0, delta * 0.7)
 	_emote_time = maxf(_emote_time - delta, 0.0)
+	_echo_reveal = maxf(_echo_reveal - delta, 0.0)
 	_process_singing(delta)
 	match state:
 		State.LOST:
@@ -304,7 +307,9 @@ func set_dormant(value: bool) -> void:
 	dormant = value
 	if dormant:
 		visible = false
+		collision_layer = 0  # no invisible obstacle left behind
 	else:
+		collision_layer = 1
 		_call_timer = 0.3  # announce itself as soon as it becomes part of the story
 
 
@@ -314,21 +319,27 @@ func receive_ping_wave(wave: PingWave) -> void:
 	_revealed = true
 	if state != State.FREED and (not visible or modulate.a < 0.5):
 		EchoMarker.spawn(global_position, _display_color(), body_radius, get_tree())
+		_echo_reveal = 2.2  # the blob itself shows up with its echo
 	var matched := wave.carries_pitch_class(_expected_note())
 	match state:
 		State.LOST:
 			_on_lost_ping(wave, matched)
 		State.WAKING:
 			# Any sound at all, right note or not, startles it and restarts its calm.
-			_shy_remaining = shy_silence
-			_jolt = 1.0
-			_set_emote("!", 0.8)
-			_add_stat("startles")
+			startle()
+			if group != null and group.mode == EchoBlobGroup.Mode.TOGETHER:
+				group.on_chorus_startled(self)
 		State.FREED:
 			_hit_flash = 0.5
 
 
 func _on_lost_ping(wave: PingWave, matched: bool) -> void:
+	if group != null and group.mode == EchoBlobGroup.Mode.TOGETHER and need == Need.SHY:
+		if matched:
+			group.on_chorus_pinged(self, wave.get_instance_id())
+		else:
+			_answer()
+		return
 	if group != null and group.mode != EchoBlobGroup.Mode.TOGETHER:
 		if matched:
 			_hit_flash = 1.0
@@ -420,6 +431,25 @@ func _expected_note() -> int:
 
 func _expected_note_for(step: int) -> int:
 	return melody[clampi(step, 0, melody.size() - 1)]
+
+
+func startle() -> void:
+	_shy_remaining = shy_silence
+	_jolt = 1.0
+	_set_emote("!", 0.8)
+	_add_stat("startles")
+
+
+## Chorus: a wave that reached only some of them. They stir, but wait for the others.
+func stir() -> void:
+	_jolt = 0.5
+	group_mark = 1.0
+	_set_emote("...", 1.0)
+
+
+func wake_up() -> void:
+	if state == State.LOST:
+		_wake()
 
 
 func _wake() -> void:
@@ -548,6 +578,8 @@ func set_fov_visible(is_in_view: bool) -> void:
 		return
 	if hidden_until_pinged and not _revealed and state != State.FREED:
 		is_in_view = false
+	if _echo_reveal > 0.0:
+		is_in_view = true
 	super.set_fov_visible(is_in_view)
 
 

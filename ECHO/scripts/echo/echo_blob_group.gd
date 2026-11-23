@@ -12,7 +12,7 @@ signal resolved(group: EchoBlobGroup)
 enum Mode {
 	SAME_WAVE,
 	CLUSTER,
-	TOGETHER,  ## only draws the link; members are helped one by one (e.g. the shy chorus)
+	TOGETHER,  ## shy chorus: ONE wave must wake them all; a startle resets them all; freed together
 	TIME_WINDOW,  ## different colours; all must hear their note within `window_seconds` of the first
 }
 
@@ -75,8 +75,40 @@ func on_member_pinged(blob: EchoBlob, matched: bool, wave_id: int) -> void:
 				_resolve()
 
 
+## Shy chorus: only a single wave that reaches every sleeping member wakes them.
+func on_chorus_pinged(blob: EchoBlob, wave_id: int) -> void:
+	if _resolved:
+		return
+	if not _wave_hits.has(wave_id):
+		_wave_hits[wave_id] = {}
+	var hits: Dictionary = _wave_hits[wave_id]
+	hits[blob] = true
+	var sleeping := 0
+	for member in members:
+		if member.state == EchoBlob.State.LOST:
+			sleeping += 1
+	if hits.size() >= sleeping:
+		_wave_hits.clear()
+		for member in members:
+			member.group_mark = 0.0
+			member.wake_up()
+	else:
+		blob.stir()
+
+
+## Startle one and the whole chorus starts its calm over again.
+func on_chorus_startled(_source: EchoBlob) -> void:
+	for member in members:
+		if member.state == EchoBlob.State.WAKING:
+			member.startle()
+
+
 func _process(delta: float) -> void:
 	_time += delta
+	if mode == Mode.TOGETHER and not _resolved:
+		for member in members:
+			if member.group_mark > 0.0 and member.state == EchoBlob.State.LOST:
+				member.group_mark = maxf(member.group_mark - delta / partial_mark_duration, 0.0)
 	if mode == Mode.TOGETHER and not _resolved:
 		var all_freed := true
 		for member in members:

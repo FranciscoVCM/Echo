@@ -10,7 +10,7 @@ extends CharacterBody2D
 signal mode_completed(mode: int)
 signal pinged(wave: PingWave)
 
-enum Mode { IDLE, MELODY, SILENCE, NOTE, SOFT }
+enum Mode { IDLE, MELODY, SILENCE, NOTE, SOFT, APPROACH }
 
 @export var letter := "K"
 @export var base_color := Color(0.15, 0.15, 0.17)
@@ -32,6 +32,13 @@ var soft_distance := 170.0
 var resonance_hint := false
 var hum_interval := 6.0
 var always_visible := false
+## APPROACH: spikes grow if you move fast nearby (and push you back); come close calmly.
+var approach_tension := 0.0
+var approach_warmth := 0.0
+const APPROACH_RADIUS := 420.0
+const APPROACH_CALM_SPEED := 140.0
+const APPROACH_CLOSE := 130.0
+const APPROACH_TIME := 5.0
 
 var _time := 0.0
 var _jolt := 0.0
@@ -139,6 +146,38 @@ func start_soft() -> void:
 	mode = Mode.SOFT
 
 
+func start_approach() -> void:
+	mode = Mode.APPROACH
+	approach_tension = 0.0
+	approach_warmth = 0.0
+
+
+func _process_approach(delta: float) -> void:
+	var player := EchoBlob.player as CharacterBody2D
+	if player == null:
+		return
+	var distance := player.global_position.distance_to(global_position)
+	var speed := player.velocity.length()
+	if distance < APPROACH_RADIUS and speed > APPROACH_CALM_SPEED:
+		approach_tension = minf(approach_tension + delta * 1.4, 1.0)
+	else:
+		approach_tension = maxf(approach_tension - delta * 0.45, 0.0)
+	if approach_tension >= 1.0:
+		# Too much, too fast: the spikes push you away and the warmth fades.
+		approach_tension = 0.0
+		approach_warmth *= 0.3
+		_jolt = 1.0
+		var away := (player.global_position - global_position).normalized()
+		player.velocity = away * 600.0
+		return
+	if distance < APPROACH_CLOSE and approach_tension < 0.5:
+		approach_warmth = minf(approach_warmth + delta / APPROACH_TIME, 1.0)
+		if approach_warmth >= 1.0:
+			_finish_mode()
+	elif distance >= APPROACH_CLOSE:
+		approach_warmth = maxf(approach_warmth - delta / (APPROACH_TIME * 2.5), 0.0)
+
+
 func _finish_mode() -> void:
 	var finished := mode
 	mode = Mode.IDLE
@@ -192,6 +231,8 @@ func _process(delta: float) -> void:
 		if _hum_timer <= 0.0:
 			_hum_timer = hum_interval
 			hum_melody()
+	if mode == Mode.APPROACH and awake:
+		_process_approach(delta)
 	if mode == Mode.SILENCE:
 		silence_remaining -= delta
 		if silence_remaining <= 0.0:
@@ -245,6 +286,18 @@ func _draw() -> void:
 	var width := font.get_string_size(letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
 	draw_string(font, shake + Vector2(-width * 0.5, radius * 0.62), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, letter_color)
 	match mode:
+		Mode.APPROACH:
+			var length := 10.0 + 28.0 * approach_tension
+			for index in range(20):
+				var angle := TAU * index / 20.0 + sin(_time * 0.7) * 0.05
+				var base := Vector2.RIGHT.rotated(angle) * radius * 0.92
+				var tip := Vector2.RIGHT.rotated(angle) * (radius + length)
+				var side := Vector2.RIGHT.rotated(angle + PI * 0.5) * 6.0
+				draw_colored_polygon(PackedVector2Array([base + side, tip, base - side]), Color(0.9, 0.9, 1.0, 0.85))
+			if approach_warmth > 0.0:
+				draw_arc(Vector2.ZERO, radius + 18.0, -PI * 0.5, -PI * 0.5 + TAU * approach_warmth, 64, Color(0.7, 0.95, 0.8, 0.9), 4.0, true)
+			if approach_tension > 0.05:
+				draw_arc(Vector2.ZERO, radius + 26.0, -PI * 0.5, -PI * 0.5 + TAU * approach_tension, 64, Color(1.0, 0.3, 0.3, 0.75), 3.0, true)
 		Mode.NOTE:
 			# Waiting to be called by a colour: a pulsing ring in that colour.
 			var pulse := 0.5 + 0.5 * sin(_time * 3.0)

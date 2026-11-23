@@ -12,6 +12,16 @@
 
 ---
 
+## 2026-11-23 (9) — Replay test fixes before showing the group
+
+- Shy chorus (linked shy blobs): only ONE wave reaching all of them wakes them; a partial wave just makes them stir; startling one restarts the calm of all; so they are freed together.
+- K's finale has a new touch stage (like M): after the song, K grows spikes; moving fast nearby raises them and pushes you back; stay calmly beside K until they lower. Stages: fragments -> song -> spikes -> trio -> silence.
+- Invisible collision in the sanctum fixed: merged (dormant) blobs drop their collision; K never collides.
+- Phantom echo circles: a pinged unseen blob now shows itself briefly with its echo, so a silhouette never appears alone; returning pieces can't be pinged.
+- Tests: 200 checks, 0 failures (partial wave does not wake a chorus; spikes stage; no leftover collision).
+
+---
+
 ## 2026-11-23 (8) — Finale polish, time-window groups, nervous blobs, after the end
 
 - Sonar silhouettes only for blobs that still need help and are not visible (no more circles where "nobody is").

@@ -282,12 +282,18 @@ func _test_full_playthrough() -> void:
 		check(not blob.is_in_group("ping_blobs"), "returning fragment can no longer be pinged")
 	await solve_melody_body(world.k_body)
 	await wait(1.0)
-	check(world._final_stage == 3, "song answered -> trio around pillars")
+	check(world._final_stage == 3, "song answered -> K's spikes (approach slowly)")
+	world.player.global_position = spot_near(world.k_body.global_position, 90.0)
+	world.player.velocity = Vector2.ZERO
+	await wait(VassalBody.APPROACH_TIME + 0.8)
+	check(world._final_stage == 4, "staying calmly beside K -> trio around pillars")
+	for blob in world._final_fragments:
+		check(blob.collision_layer == 0, "merged fragments leave no invisible collision")
 	var trio_spot := find_same_wave_spot(world._final_trio.members, 450.0)
 	check(trio_spot != Vector2.INF, "there is a spot where one wave reaches the whole trio")
 	await ping_at(trio_spot, 6, 0.8)
 	await wait(0.5)
-	check(world._final_stage == 4, "trio freed -> silence")
+	check(world._final_stage == 5, "trio freed -> silence")
 	world.player.global_position = Vector2(0, 250)
 	await wait(7.0)
 	check(game.is_vassal_freed("K"), "silence respected -> K freed, game complete")
@@ -383,6 +389,19 @@ func solve_spec(spec: Dictionary, area: String) -> void:
 		"cluster":
 			for blob in blobs:
 				await ping_at(spot_near(blob.global_position, 130.0), blob.note, 0.3)
+		"together":
+			# A small ping that reaches only one of them must NOT wake it.
+			await ping_at(spot_near(blobs[0].global_position, 70.0), blobs[0].note, 0.0)
+			check(blobs[0].state == EchoBlob.State.LOST, "%s: a wave reaching only part of the shy chorus wakes nobody" % spec["id"])
+			await wait(1.0)
+			# Shy chorus: one wave must wake all of them, then silence.
+			var spot := find_same_wave_spot(blobs, 450.0)
+			await ping_at(spot, blobs[0].note, 0.9)
+			for blob in blobs:
+				if blob.state != EchoBlob.State.WAKING:
+					check(false, "%s: one wave woke the whole chorus" % spec["id"])
+			world.player.global_position = away_from(blobs[0].global_position)
+			await wait(blobs[0].shy_silence + 1.0)
 		"window":
 			# Note by note (no chord), from the spot that sees all three, within the window.
 			var anchor := Vector2(spec["solution"][0], spec["solution"][1])
